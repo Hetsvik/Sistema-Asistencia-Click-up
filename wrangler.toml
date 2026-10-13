@@ -1,0 +1,26 @@
+name = "erp-construcciones-sac-test"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Archivos estáticos (HTML, CSS, JS). /usuarios/tareas -> frontend/usuarios/tareas.html
+[assets]
+directory = "./frontend/"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+
+# Zona horaria de la empresa: se usa para la hora de entrada/salida y los reportes
+[vars]
+TIMEZONE = "America/Lima"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bd-empresa2"
+database_id = "16674ab6-0549-4cbe-bf65-aa339c7e20cc"
+migrations_dir = "database/migrations"
+
+[observability]
+enabled = true
+
+# Secretos (NO van aquí):
+#   producción -> npx wrangler secret put SESSION_SECRET
+#   local      -> archivo .dev.vars (ver .dev.vars.example)

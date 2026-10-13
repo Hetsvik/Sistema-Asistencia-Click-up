@@ -1,0 +1,28 @@
+{
+  "name": "erp-construcciones-sac",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ERP intranet (asistencia, tareas y reportes) sobre Cloudflare Workers + D1",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test --no-warnings \"tests/*.test.mjs\"",
+    "smoke": "node scripts/smoke.mjs",
+    "secret:generate": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+    "db:build-import": "node --no-warnings scripts/build-import.mjs",
+    "db:migrate:local": "wrangler d1 migrations apply bd-empresa2 --local",
+    "db:import:local": "wrangler d1 execute bd-empresa2 --local --file=database/private/datos_iniciales.sql",
+    "db:migrate:remote": "wrangler d1 migrations apply bd-empresa2 --remote",
+    "db:import:remote": "wrangler d1 execute bd-empresa2 --remote --file=database/private/datos_iniciales.sql",
+    "deploy:check": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "db:hash-pins:local": "wrangler d1 execute bd-empresa2 --local --file=database/private/actualizar_pins.sql",
+    "db:hash-pins:remote": "wrangler d1 execute bd-empresa2 --remote --file=database/private/actualizar_pins.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}

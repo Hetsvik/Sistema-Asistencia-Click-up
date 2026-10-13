@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#080808">
+<title>Asistencia · Intranet Arquitectura &amp; Servicios Generales</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/styles.css">
+</head>
+<body data-role="admin" class="is-loading">
+<noscript><p style="padding:2rem;color:#f3d98b">Esta aplicación necesita JavaScript habilitado.</p></noscript>
+<div class="app">
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Asistencia</h1>
+        <p class="page-sub">Control de entradas y salidas</p>
+      </div>
+      <div class="top-actions">
+        <div class="notif-wrap">
+          <button class="icon-btn" id="bell" type="button" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><span class="dot" hidden></span></button>
+          <div class="notif-panel" id="notif-panel" hidden></div>
+        </div>
+        <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
+      </div>
+    </header>
+    <section class="attendance-top">
+      <div class="clock"><span>Hora actual</span><b id="clock-time">--:--</b><span id="clock-date">&nbsp;</span></div>
+
+    </section>
+    <section class="card">
+      <h2>Registro de asistencia</h2>
+      <div class="toolbar">
+        <div class="field"><label for="att-search">Consultar Asistencia:</label>
+          <div class="search grow"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="att-search" class="input" type="search" placeholder="Buscar por nombre"></div></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Trabajador</th><th>Fecha</th><th>Hora Ingreso</th><th>Hora Salida</th><th>Estado</th></tr></thead>
+        <tbody id="att-body"><tr><td colspan="5" class="empty">Cargando…</td></tr></tbody>
+      </table></div>
+    </section>
+  </main>
+</div>
+<script type="module" src="/js/pages/asistencia.js"></script>
+</body>
+</html>

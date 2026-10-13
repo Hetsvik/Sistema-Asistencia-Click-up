@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#080808">
+<title>Reportes · Intranet Arquitectura &amp; Servicios Generales</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/styles.css">
+</head>
+<body data-role="trabajador" class="is-loading">
+<noscript><p style="padding:2rem;color:#f3d98b">Esta aplicación necesita JavaScript habilitado.</p></noscript>
+<div class="app">
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Reportes</h1>
+        <p class="page-sub">Indicadores de desempeño</p>
+      </div>
+      <div class="top-actions">
+        <div class="notif-wrap">
+          <button class="icon-btn" id="bell" type="button" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><span class="dot" hidden></span></button>
+          <div class="notif-panel" id="notif-panel" hidden></div>
+        </div>
+        <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
+      </div>
+    </header>
+    <section class="card">
+      <div class="report-bar">
+        <div><p class="eyebrow">Reporte</p><p class="report-scope" id="report-scope">&nbsp;</p></div>
+        <div class="btn-row" style="gap:18px;align-items:flex-end">
+        <div class="field"><label for="periodo">Periodo:</label>
+          <select class="input plain" id="periodo"><option value="semana">Esta semana</option><option value="mes" selected>Este mes</option><option value="todo">Histórico</option></select></div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="ico"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><small>Asistencias</small><b id="stat-asist">?/?</b><small id="stat-asist-sub"></small></div></div>
+        <div class="stat"><span class="ico"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8l1.5 1.5L12 7M8 15l1.5 1.5L12 14M14.5 9h2.5M14.5 16h2.5"/></svg></span><div><small>Tareas completadas</small><b id="stat-tareas">?</b><small id="stat-tareas-sub"></small></div></div>
+        <div class="stat"><span class="ico"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></span><div><small>Eficiencia</small><b id="stat-efic">?</b></div></div>
+      </div>
+      <div class="chart has-canvas">
+        <canvas id="chart" hidden role="img" aria-label="Gráfico de asistencias y tareas"></canvas>
+        <div class="chart-empty" id="chart-empty"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><p>Sin datos para este periodo</p></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module" src="/js/pages/reportes.js"></script>
+</body>
+</html>

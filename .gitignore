@@ -1,0 +1,18 @@
+node_modules/
+.wrangler/
+.venv/
+.dev.vars
+.env
+*.log
+.DS_Store
+# Datos reales de la empresa (se generan con npm run db:build-import)
+database/private/
+
+# Variantes de archivos de entorno y credenciales
+.env.*
+.dev.vars.*
+!.dev.vars.example
+*.pem
+*.key
+schema.sql
+schema.original.sql

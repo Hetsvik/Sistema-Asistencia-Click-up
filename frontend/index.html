@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Control de asistencia y actividades corporativas.">
+<meta name="theme-color" content="#080808">
+<title>Ingresar · Intranet Arquitectura &amp; Servicios Generales</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="auth-page">
+<canvas id="gold-wave-canvas" aria-hidden="true"></canvas>
+<main class="auth-layout">
+  <section class="auth-brand" aria-label="Presentación de la plataforma">
+    <a class="brand" href="/"><span class="mark">A</span>Arquitectura &amp; SG</a>
+    <div class="auth-copy">
+      <p class="eyebrow">Gestión diaria, en un solo lugar</p>
+      <h1>Tu jornada, tareas y equipo bajo control.</h1>
+      <p>Registra asistencia, sigue actividades y consulta indicadores desde cualquier dispositivo.</p>
+    </div>
+    <div class="auth-feature-list">
+      <div><span>✓</span>Marcación de entrada y salida</div>
+      <div><span>✓</span>Seguimiento de tareas y entregas</div>
+      <div><span>✓</span>Panel de administración</div>
+    </div>
+  </section>
+  <section class="auth-card-wrap">
+    <form id="login-form" class="auth-card" novalidate>
+      <div><p class="eyebrow">Acceso seguro</p><h2>Bienvenido de nuevo</h2><p class="muted">Ingresa tus datos para continuar.</p></div>
+      <div class="form-field"><label for="login-role">Perfil</label>
+        <select id="login-role" name="role"><option value="trabajador">Empleado</option><option value="admin">Administrador</option></select></div>
+      <div class="form-field"><label for="login-code">Código de usuario</label>
+        <input id="login-code" name="code" autocomplete="username" placeholder="Tu código de empleado" required></div>
+      <div class="form-field"><label for="login-pin">Contraseña o PIN</label>
+        <input id="login-pin" name="pin" type="password" autocomplete="current-password" placeholder="••••" required></div>
+      <p id="login-message" class="form-message" role="alert" hidden></p>
+      <button class="btn btn-full" type="submit">Ingresar</button>
+      <p class="auth-note">Acceso exclusivo para personal autorizado.</p>
+    </form>
+  </section>
+</main>
+<script type="module" src="/js/pages/login.js"></script>
+</body>
+</html>

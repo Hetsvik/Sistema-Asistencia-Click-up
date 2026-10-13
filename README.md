@@ -2,7 +2,7 @@
 
 Asistencia, tareas y reportes para el personal. Corre completo en **Cloudflare Workers + D1** (sin servidor propio).
 
-- Entorno conectado: https://erp-construcciones-sac-test.rodrigo-ochoa333.workers.dev
+- Entorno conectado: https://sistema-asistencia-click-up.rodrigo-ochoa333.workers.dev)
 - Base D1: `bd-empresa2`. Este repositorio no modifica el Worker principal ni su base.
 - Diseño base: `design/Interfaces ERP .drawio`
 

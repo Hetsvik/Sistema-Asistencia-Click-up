@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#080808">
+<title>Crear usuario · Intranet Arquitectura &amp; Servicios Generales</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="/css/modulos.css">
+</head>
+<body data-role="admin" class="is-loading module-page">
+<noscript><p>Esta aplicación necesita JavaScript habilitado.</p></noscript>
+<div class="app"><main class="main">
+<header class="topbar">
+  <div><h1 class="page-title">Crear usuario</h1><p class="page-sub">Añade una nueva cuenta al equipo</p></div>
+  <div class="top-actions">
+    <div class="notif-wrap"><button class="icon-btn" id="bell" type="button" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><span class="dot" hidden></span></button><div class="notif-panel" id="notif-panel" hidden></div></div>
+    <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú" role="button" tabindex="0"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
+  </div>
+</header>
+
+<a class="module-back" href="/admin/usuarios">← Volver a usuarios</a>
+<form id="user-form" class="card module-form user-form" data-mode="create">
+ <div class="form-intro"><p class="module-eyebrow">Acceso al sistema</p><h2>Datos de la cuenta</h2><p id="user-code" class="muted" hidden></p></div>
+ <fieldset id="user-fields" >
+ <div class="form-field"><label for="user-name">Nombres y apellidos <span aria-hidden="true">*</span></label><input class="input plain" id="user-name" name="nombre" maxlength="120" autocomplete="name" required></div>
+ <div class="form-field"><label for="user-email">Correo electrónico <span aria-hidden="true">*</span></label><input class="input plain" id="user-email" name="correo" type="email" maxlength="254" autocomplete="email" required></div>
+ <div class="form-field"><label for="user-password">Contraseña <span aria-hidden="true">*</span></label><input class="input plain" id="user-password" name="pin" type="password" minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="password-help" required><small id="password-help" class="field-help">Mínimo 8 caracteres. El código de acceso se genera al crear la cuenta.</small></div>
+ <div class="form-field"><label for="user-role">Rol <span aria-hidden="true">*</span></label><select class="input plain" id="user-role" name="rol" required><option value="trabajador">Trabajador</option><option value="admin">Administrador</option></select></div>
+ <div class="form-field"><label for="user-phone">Teléfono <span class="optional">(opcional)</span></label><input class="input plain" id="user-phone" name="telefono" type="tel" maxlength="32" autocomplete="tel"></div>
+ </fieldset>
+ <p id="page-message" class="module-message error" role="alert" hidden></p>
+ <div class="module-actions"><button class="btn" type="submit" id="user-submit" >Crear Usuario</button><a class="btn outline" href="/admin/usuarios">Cancelar</a></div>
+</form>
+</main></div>
+<script type="module" src="/js/pages/usuario-form.js"></script>
+</body></html>

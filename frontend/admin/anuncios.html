@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#080808">
+<title>Anuncios · Intranet Arquitectura &amp; Servicios Generales</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="/css/modulos.css">
+</head>
+<body data-role="admin" class="is-loading module-page">
+<noscript><p>Esta aplicación necesita JavaScript habilitado.</p></noscript>
+<div class="app"><main class="main">
+<header class="topbar">
+  <div><h1 class="page-title">Anuncios</h1><p class="page-sub">Información y novedades de la empresa</p></div>
+  <div class="top-actions">
+    <div class="notif-wrap"><button class="icon-btn" id="bell" type="button" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><span class="dot" hidden></span></button><div class="notif-panel" id="notif-panel" hidden></div></div>
+    <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú" role="button" tabindex="0"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
+  </div>
+</header>
+<div class="toolbar module-toolbar"><a class="btn" href="/admin/anuncios/nuevo"><span aria-hidden="true">＋</span>Crear Anuncio</a>
+  <label class="module-search" for="announcement-search">Buscar anuncio
+    <input class="input plain" type="search" id="announcement-search" placeholder="Nombre o motivo" maxlength="160">
+  </label>
+</div>
+<p id="page-message" class="module-message error" role="alert" hidden></p>
+<div class="table-wrap announcements-table" id="announcement-table" aria-busy="true">
+<table><thead><tr>
+  <th scope="col" id="sort-name" aria-sort="none"><button class="sort-button" data-sort="nombre" type="button">Anuncios <span data-arrow aria-hidden="true">⇅</span></button></th>
+  <th scope="col" id="sort-date" aria-sort="descending"><button class="sort-button" data-sort="fecha" type="button">Fecha <span data-arrow aria-hidden="true">↓</span></button></th>
+</tr></thead><tbody id="announcement-list"><tr><td colspan="2">Cargando anuncios…</td></tr></tbody></table>
+</div>
+<div class="module-pager" id="pagination" aria-label="Paginación"></div>
+</main></div>
+<script type="module" src="/js/pages/anuncios.js"></script>
+</body></html>

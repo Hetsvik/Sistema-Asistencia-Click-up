@@ -11,6 +11,9 @@ import * as attendance from './routes/attendance.js';
 import * as tasks from './routes/tasks.js';
 import * as reports from './routes/reports.js';
 import * as users from './routes/users.js';
+import * as announcements from './routes/announcements.js';
+import * as userManagement from './routes/user-management.js';
+import { validateAccountSession } from './lib/accounts.js';
 
 export const router = new Router();
 
@@ -37,6 +40,17 @@ router.post('/api/tasks/:id/comments', tasks.addComment, { auth: 'any' });
 router.get('/api/projects', tasks.projects, { auth: 'admin' });
 router.get('/api/users', users.list, { auth: 'admin' });
 
+// Anuncios: lectura para ambos roles, creación exclusiva del administrador.
+router.get('/api/announcements', announcements.list, { auth: 'any' });
+router.post('/api/announcements', announcements.create, { auth: 'admin' });
+
+// Gestión de cuentas; /api/users conserva el catálogo de trabajadores.
+router.get('/api/admin/users', userManagement.list, { auth: 'admin' });
+router.post('/api/admin/users', userManagement.create, { auth: 'admin' });
+router.get('/api/admin/users/:id', userManagement.detail, { auth: 'admin' });
+router.put('/api/admin/users/:id', userManagement.update, { auth: 'admin' });
+router.put('/api/admin/users/:id/status', userManagement.setStatus, { auth: 'admin' });
+
 // Reportes
 router.get('/api/reports/summary', reports.summary, { auth: 'any' });
 
@@ -61,6 +75,7 @@ export async function handleApi(request, env) {
     if (route.options.auth) {
       user = await readSession(request, env);
       if (!user) throw new HttpError(401, 'Sesión no válida o expirada.');
+      user = await validateAccountSession(env, user);
       if (route.options.auth !== 'any' && user.rol !== route.options.auth) {
         throw new HttpError(403, 'No tienes permisos para esta acción.');
       }

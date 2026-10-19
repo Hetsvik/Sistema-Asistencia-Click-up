@@ -8,16 +8,20 @@ const LOCK_MS = 15 * 60 * 1000;
 const QUERIES = {
   admin: {
     select: `SELECT A.ID_Administrador AS id, A.Codigo_Administrador AS codigo, A.PIN_Acceso AS pin,
-                    E.Nombre_Completo AS nombre, E.Estado AS estado, NULL AS cargo
+                    E.Nombre_Completo AS nombre, E.Estado AS estado, NULL AS cargo,
+                    E.ID_Empleado AS empleado_id, COALESCE(C.Version_Sesion,0) AS version
              FROM Administrador A JOIN Empleados E ON E.ID_Empleado = A.ID_Empleado
-             WHERE A.Codigo_Administrador = ? COLLATE NOCASE`,
+             LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado
+             WHERE A.Codigo_Administrador = ? COLLATE NOCASE AND COALESCE(C.Rol,'admin')='admin'`,
     update: 'UPDATE Administrador SET PIN_Acceso = ? WHERE ID_Administrador = ?',
   },
   trabajador: {
     select: `SELECT T.ID_Trabajador AS id, T.Codigo_Trabajador AS codigo, T.PIN_Acceso AS pin,
-                    E.Nombre_Completo AS nombre, E.Estado AS estado, T.Rol_Cargo AS cargo
+                    E.Nombre_Completo AS nombre, E.Estado AS estado, T.Rol_Cargo AS cargo,
+                    E.ID_Empleado AS empleado_id, COALESCE(C.Version_Sesion,0) AS version
              FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado = T.ID_Empleado
-             WHERE T.Codigo_Trabajador = ? COLLATE NOCASE`,
+             LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado
+             WHERE T.Codigo_Trabajador = ? COLLATE NOCASE AND COALESCE(C.Rol,'trabajador')='trabajador'`,
     update: 'UPDATE Trabajadores SET PIN_Acceso = ? WHERE ID_Trabajador = ?',
   },
 };
@@ -61,7 +65,7 @@ export async function login({ request, env, url }) {
   await env.DB.prepare('DELETE FROM Intentos_Login WHERE Clave = ?').bind(key).run();
   if (needsRehash(row.pin)) await env.DB.prepare(q.update).bind(await hashPin(pin), row.id).run();
 
-  const user = { id: row.id, codigo: row.codigo, nombre: row.nombre, cargo: row.cargo, rol };
+  const user = { id: row.id, codigo: row.codigo, nombre: row.nombre, cargo: row.cargo, empleado_id: row.empleado_id, version: row.version, rol };
   const token = await signSession(env, user);
   return json({ user }, 200, { 'Set-Cookie': sessionCookie(token, url) });
 }

@@ -19,5 +19,12 @@ export function createTestDb({ seed = true, root = new URL('..', import.meta.url
   const dir = join(root, 'database/migrations');
   for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql')).sort()) db.exec(readFileSync(join(dir, f), 'utf8'));
   if (seed) db.exec(readFileSync(join(root, 'tests/fixtures/test_data.sql'), 'utf8'));
-  return { raw: db, prepare: (sql) => new Statement(db, sql) };
+  return {
+    raw: db, prepare: (sql) => new Statement(db, sql),
+    async batch(statements) {
+      db.exec('BEGIN');
+      try { const results = []; for (const s of statements) results.push(await s.run()); db.exec('COMMIT'); return results; }
+      catch (err) { db.exec('ROLLBACK'); throw err; }
+    },
+  };
 }

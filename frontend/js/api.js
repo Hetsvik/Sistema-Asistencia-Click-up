@@ -65,3 +65,16 @@ export const Catalog = {
 export const Reports = {
   summary: (params) => request('GET', API.reportSummary, { params }),
 };
+
+// Nuevos módulos. El catálogo Catalog.users sigue siendo compatible con Tareas y Reportes.
+export const Announcements = {
+  list: (params) => request('GET', API.announcements, { params }),
+  create: (body) => request('POST', API.announcements, { body }),
+};
+export const ManagedUsers = {
+  list: (params) => request('GET', API.managedUsers, { params }),
+  get: (id) => request('GET', API.managedUser(id)),
+  create: (body) => request('POST', API.managedUsers, { body }),
+  update: (id, body) => request('PUT', API.managedUser(id), { body }),
+  setStatus: (id, estado) => request('PUT', API.managedUserStatus(id), { body: { estado } }),
+};

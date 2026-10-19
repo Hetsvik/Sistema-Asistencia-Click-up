@@ -8,12 +8,20 @@ export const ROUTES = {
     asistencia: '/admin/asistencia',
     tareas: '/admin/tareas',
     reportes: '/admin/reportes',
+    anuncios: '/admin/anuncios',
+    anuncioNuevo: '/admin/anuncios/nuevo',
+    calendario: '/admin/calendario',
+    usuarios: '/admin/usuarios',
+    usuarioNuevo: '/admin/usuarios/nuevo',
+    usuarioEditar: (id) => `/admin/usuarios/editar?id=${encodeURIComponent(id)}`,
   },
   trabajador: {
     inicio: '/usuarios/inicio',
     asistencia: '/usuarios/asistencia',
     tareas: '/usuarios/tareas',
     reportes: '/usuarios/reportes',
+    anuncios: '/usuarios/anuncios',
+    calendario: '/usuarios/calendario',
   },
 };
 
@@ -32,14 +40,18 @@ export const API = {
   projects: '/api/projects',
   users: '/api/users',
   reportSummary: '/api/reports/summary',
+  announcements: '/api/announcements',
+  managedUsers: '/api/admin/users',
+  managedUser: (id) => `/api/admin/users/${encodeURIComponent(id)}`,
+  managedUserStatus: (id) => `/api/admin/users/${encodeURIComponent(id)}/status`,
 };
 
 /** Elementos del menú lateral. `soon: true` = aún sin página (muestra aviso). */
 export const NAV = [
   { key: 'inicio', label: 'Inicio', icon: 'home', href: (rol) => ROUTES[rol].inicio },
-  { key: 'anuncios', label: 'Anuncios', icon: 'mega', soon: true },
-  { key: 'calendario', label: 'Calendario', icon: 'cal', soon: true },
-  { key: 'usuarios', label: 'Usuarios', icon: 'users', soon: true, roles: ['admin'] },
+  { key: 'anuncios', label: 'Anuncios', icon: 'mega', href: (rol) => ROUTES[rol].anuncios },
+  { key: 'calendario', label: 'Calendario', icon: 'cal', href: (rol) => ROUTES[rol].calendario },
+  { key: 'usuarios', label: 'Usuarios', icon: 'users', href: (rol) => ROUTES[rol].usuarios, roles: ['admin'] },
   { key: 'cuenta', label: 'Cuenta', icon: 'user', soon: true },
 ];
 

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#080808">
+<title>Usuarios · Intranet Arquitectura &amp; Servicios Generales</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="/css/modulos.css">
+</head>
+<body data-role="admin" class="is-loading module-page">
+<noscript><p>Esta aplicación necesita JavaScript habilitado.</p></noscript>
+<div class="app"><main class="main">
+<header class="topbar">
+  <div><h1 class="page-title">Usuarios</h1><p class="page-sub">Gestiona las cuentas y el acceso al sistema</p></div>
+  <div class="top-actions">
+    <div class="notif-wrap"><button class="icon-btn" id="bell" type="button" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><span class="dot" hidden></span></button><div class="notif-panel" id="notif-panel" hidden></div></div>
+    <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú" role="button" tabindex="0"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
+  </div>
+</header>
+
+<div class="users-overview">
+ <div class="user-stat"><span>Usuarios activos</span><strong id="stat-active">—</strong></div>
+ <div class="user-stat"><span>Administradores</span><strong id="stat-admin">—</strong></div>
+ <div class="user-stat"><span>Trabajadores</span><strong id="stat-worker">—</strong></div>
+ <a class="btn" href="/admin/usuarios/nuevo"><span aria-hidden="true">＋</span>Crear Usuario</a>
+</div>
+<p id="created-message" class="module-message success" role="status" hidden></p>
+<div class="user-filters">
+ <label class="module-search" for="user-search">Buscar usuario<input class="input plain" type="search" id="user-search" placeholder="Nombre, código o correo" maxlength="120"></label>
+ <label class="module-select" for="user-role">Rol<select class="input plain" id="user-role"><option value="">Todos los roles</option><option value="admin">Administrador</option><option value="trabajador">Trabajador</option></select></label>
+ <label class="module-select" for="user-status">Estado<select class="input plain" id="user-status"><option value="">Todos los estados</option><option value="Activo">Activo</option><option value="Inactivo">Inactivo</option></select></label>
+</div>
+<p id="page-message" class="module-message error" role="alert" hidden></p>
+<div class="table-wrap users-table" id="user-table" aria-busy="true"><table>
+<thead><tr><th scope="col">Nombre</th><th scope="col">Rol</th><th scope="col">Teléfono</th><th scope="col">Acciones</th></tr></thead>
+<tbody id="user-list"><tr><td colspan="4">Cargando usuarios…</td></tr></tbody>
+</table></div>
+<div class="module-pager" id="pagination" aria-label="Paginación"></div>
+</main></div>
+<script type="module" src="/js/pages/usuarios.js"></script>
+</body></html>

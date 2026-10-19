@@ -47,3 +47,4 @@ export function startWaves(canvas) {
   reduce.addEventListener('change', start);
   return () => { cancelAnimationFrame(raf); document.removeEventListener('visibilitychange', onVisibility); };
 }
+//Se agrego las nuevas interfaces

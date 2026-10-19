@@ -25,7 +25,6 @@ function render() {
   list.innerHTML = tasks.map((t) => {
     const a = actionFor(t);
     return `<article class="task" data-id="${t.id}" tabindex="0">
-      <span class="num">${t.id}</span>
       <span class="name">${esc(t.proyecto)}${isAdmin ? `<small>${esc(t.trabajador)}</small>` : ''}</span>
       <span class="desc" title="${esc(t.descripcion)}">${esc(truncate(t.descripcion, 50))}</span>
       <span class="date">${fmtDate(t.fecha_entrega)}</span>
@@ -80,7 +79,7 @@ async function openDetail(id) {
   try { task = (await Tasks.get(id)).task; } catch (err) { return toast(err.message, 'error'); }
 
   const modal = openModal({
-    title: `Tarea #${task.id} · ${task.proyecto}`,
+    title: `Tarea · ${task.proyecto}`,
     wide: true,
     onClose: () => clearInterval(timer),
     html: `
@@ -199,4 +198,7 @@ async function openCreate() {
 }
 $('#btn-add')?.addEventListener('click', openCreate);
 
-load();
+await load();
+// El identificador se conserva internamente para abrir una tarea desde calendario/notificaciones.
+const linkedTask = new URLSearchParams(location.search).get('tarea');
+if (linkedTask && /^[1-9]\d*$/.test(linkedTask)) await openDetail(Number(linkedTask));

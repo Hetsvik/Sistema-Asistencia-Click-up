@@ -1,5 +1,6 @@
 // Estructura común de las páginas internas: barra lateral, notificaciones y guardas de sesión.
 import { Tasks } from './api.js';
+import { notificationKey, visibleNotifications } from './task-events.js';
 import { NAV, POLL_NOTIFICATIONS_MS, ROL_LABEL, ROUTES } from './config.js';
 import { requireSession, logout } from './session.js';
 import { $, $$, esc, fmtDateTime, icon, toast } from './ui.js';
@@ -27,25 +28,53 @@ const sidebarHtml = (user, page) => {
 };
 
 /** Notificaciones: tareas vencidas o con plazo en las próximas 24 h. */
-function initNotifications() {
-  const bell = $('#bell');
-  const panel = $('#notif-panel');
+function initNotifications(user) {
+  const bell = $('#bell'), panel = $('#notif-panel');
   if (!bell || !panel) return;
-
-  const refresh = async () => {
-    try {
-      const { tasks } = await Tasks.list();
-      const urgent = tasks.filter((t) => t.estado !== 'Completada' && t.prioridad === 'Alta');
-      $('.dot', bell)?.toggleAttribute('hidden', urgent.length === 0);
-      panel.innerHTML = `<div class="notif-head">Notificaciones</div>` + (urgent.length
-        ? urgent.map((t) => `<a class="notif-item" href="${location.pathname.split('/').slice(0, 2).join('/')}/tareas">
-            <strong>${esc(t.proyecto)}</strong><span>Vence ${fmtDateTime(t.fecha_entrega)}</span></a>`).join('')
-        : '<p class="notif-empty">No tienes notificaciones nuevas.</p>');
-    } catch { /* las notificaciones nunca deben romper la página */ }
+  const storageKey = `erp:notifications:v1:${user.empleado_id ?? `${user.rol}:${user.id}`}`;
+  let dismissed = [], urgent = [], busy = false, signature = ''; 
+  try { const saved = JSON.parse(localStorage.getItem(storageKey) || '[]'); if (Array.isArray(saved)) dismissed = saved.filter(x => typeof x === 'string'); } catch { /* almacenamiento privado no disponible */ }
+  bell.setAttribute('aria-controls', 'notif-panel');
+  bell.setAttribute('aria-expanded', 'false');
+  panel.setAttribute('aria-label', 'Notificaciones');
+  const paint = () => {
+    const items = visibleNotifications(urgent, dismissed);
+    const nextSignature = JSON.stringify(items);
+    if (signature === nextSignature) return;
+    signature = nextSignature;
+    const scroll = $('.notif-list', panel)?.scrollTop || 0;
+    const hadFocus = panel.contains(document.activeElement);
+    $('.dot', bell)?.toggleAttribute('hidden', !items.length);
+    panel.innerHTML = `<div class="notif-head">Notificaciones <span class="notif-count">${items.length}</span></div>
+      <div class="notif-list" tabindex="0" role="region" aria-label="Lista de notificaciones">${items.length
+        ? items.map(t => `<a class="notif-item" href="${ROUTES[user.rol].tareas}?tarea=${encodeURIComponent(t.id)}"><strong>${esc(t.proyecto)}</strong><span>${esc(t.descripcion)}</span><span>Vence ${fmtDateTime(t.fecha_entrega)}</span></a>`).join('')
+        : '<p class="notif-empty">No tienes notificaciones nuevas.</p>'}</div>
+      <div class="notif-footer"><button type="button" class="notif-clear" ${items.length ? '' : 'disabled'}>Eliminar todas</button></div>`;
+    $('.notif-list', panel).scrollTop = scroll;
+    if (hadFocus) $('.notif-clear', panel).disabled ? $('.notif-list', panel).focus() : $('.notif-clear', panel).focus();
   };
-
-  bell.addEventListener('click', (e) => { e.stopPropagation(); panel.toggleAttribute('hidden'); });
-  document.addEventListener('click', (e) => { if (!panel.contains(e.target)) panel.setAttribute('hidden', ''); });
+  const refresh = async () => {
+    if (busy) return;
+    busy = true;
+    try { urgent = (await Tasks.list({ notifications: '1' })).tasks; paint(); }
+    catch { /* no interrumpir la página ni borrar el estado previo */ }
+    finally { busy = false; }
+  };
+  panel.addEventListener('click', e => {
+    if (!e.target.closest('.notif-clear')) return;
+    e.stopPropagation();
+    dismissed = [...new Set([...dismissed, ...urgent.map(notificationKey)])];
+    try { localStorage.setItem(storageKey, JSON.stringify(dismissed)); } catch { toast('Se limpiaron por esta sesión; el navegador no permite guardar la preferencia.'); }
+    paint();
+  });
+  const close = () => { panel.hidden = true; bell.setAttribute('aria-expanded', 'false'); };
+  bell.addEventListener('click', e => { e.stopPropagation(); panel.hidden = !panel.hidden; bell.setAttribute('aria-expanded', String(!panel.hidden)); if (!panel.hidden) refresh(); });
+  document.addEventListener('click', e => { if (!panel.contains(e.target)) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) { close(); bell.focus(); } });
+  window.addEventListener('storage', e => {
+    if (e.key !== storageKey) return;
+    try { const value = JSON.parse(e.newValue || '[]'); dismissed = Array.isArray(value) ? value.filter(x => typeof x === 'string') : []; paint(); } catch { /* ignorar valores ajenos */ }
+  });
   refresh();
   setInterval(refresh, POLL_NOTIFICATIONS_MS);
 }
@@ -69,7 +98,7 @@ export async function initPage({ role, page }) {
 
   $$('[data-soon]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); toast('Esta sección estará disponible pronto.'); }));
   $('[data-logout]').addEventListener('click', (e) => { e.preventDefault(); logout(); });
-  initNotifications();
+  initNotifications(user);
   document.body.classList.remove('is-loading');
   return user;
 }

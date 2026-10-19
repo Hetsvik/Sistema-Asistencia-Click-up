@@ -43,10 +43,24 @@ export async function list({ env, user, url, tz }) {
   const q = (p.get('q') ?? '').trim().slice(0, 60);
   if (q) add('(p.Nombre_Proyecto LIKE ? OR t.Descripcion_Tarea LIKE ? OR e.Nombre_Completo LIKE ?)', `%${q}%`, `%${q}%`, `%${q}%`);
 
+  const calendar = p.get('calendar');
+  const notifications = p.get('notifications');
+  if (calendar !== null) {
+    if (!/^(19|20|21)\d{2}-(0[1-9]|1[0-2])$/.test(calendar)) throw new HttpError(400, 'Mes de calendario no válido.');
+    const first = new Date(`${calendar}-01T00:00:00Z`);
+    first.setUTCDate(1 - (first.getUTCDay()+6)%7);
+    const after = new Date(first); after.setUTCDate(after.getUTCDate()+42);
+    add('t.Fecha_Entrega >= ? AND t.Fecha_Entrega < ?', first.toISOString().slice(0,10)+' 00:00:00', after.toISOString().slice(0,10)+' 00:00:00');
+  }
+  if (notifications !== null) {
+    if (notifications !== '1') throw new HttpError(400, 'Filtro de notificaciones no válido.');
+    const cutoff = new Date(toMs(nowLocal(tz).fechaHora)+24*60*60*1000).toISOString().slice(0,19).replace('T',' ');
+    add("t.Estado_Tarea <> 'Completada' AND t.Fecha_Entrega <= ?", cutoff);
+  }
   const limit = intParam(p.get('limit'), { min: 1, max: 500, fallback: 200 });
   const sql = `${SELECT} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-               ORDER BY (t.Estado_Tarea = 'Completada'), t.Fecha_Entrega ASC LIMIT ?`;
-  const { results } = await env.DB.prepare(sql).bind(...binds, limit).all();
+               ORDER BY (t.Estado_Tarea = 'Completada'), t.Fecha_Entrega ASC, t.ID_Tarea ASC ${calendar !== null || notifications !== null ? '' : 'LIMIT ?'}`;
+  const { results } = await env.DB.prepare(sql).bind(...binds, ...(calendar !== null || notifications !== null ? [] : [limit])).all();
   const ahora = nowLocal(tz).fechaHora;
   return json({ tasks: results.map((t) => withPriority(t, ahora)) });
 }

@@ -99,7 +99,12 @@ test('tareas: solo el admin crea; valida datos; marca entrega fuera de plazo', a
   const nuevo = await call('POST', '/api/tasks', { cookie: adm, body: { ...base, proyecto_id: undefined, proyecto_nuevo: { nombre: 'Obra Z', area: 'Obras' }, fecha_entrega: '2000-01-01T10:00', fecha_inicio: '1999-12-31T10:00' } });
   assert.equal(nuevo.status, 201);
   assert.equal(nuevo.data.task.proyecto, 'Obra Z');
+  // Nueva regla: la entrega debe pasar por progreso y revisión antes de aprobarse.
+  for (const estado of ['En Progreso', 'En revisión']) {
+    assert.equal((await call('PUT', `/api/tasks/${nuevo.data.task.id}/status`, { cookie: adm, body: { estado } })).status, 200);
+  }
   const done = await call('PUT', `/api/tasks/${nuevo.data.task.id}/status`, { cookie: adm, body: { estado: 'Completada' } });
+  assert.equal(done.status, 200);
   assert.match(done.data.task.observaciones, /FUERA DE PLAZO/);
 });
 

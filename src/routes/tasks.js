@@ -1,20 +1,21 @@
 import { HttpError, intParam, json, readJson, text } from '../lib/http.js';
 import { nowLocal, normalizeDateTime, priorityFor, toMs } from '../lib/dates.js';
 
-const ESTADOS = ['Asignada', 'En Progreso', 'Completada'];
+const ESTADOS = ['Asignada', 'En Progreso', 'En revisión', 'Completada'];
 const LATE_TAG = '[ENTREGADO FUERA DE PLAZO]';
 
 const SELECT = `
   SELECT t.ID_Tarea AS id, t.ID_Trabajador AS trabajador_id, e.Nombre_Completo AS trabajador,
          t.ID_Proyecto AS proyecto_id, p.Nombre_Proyecto AS proyecto, p.Area_Departamento AS area,
          t.Descripcion_Tarea AS descripcion, t.Fecha AS fecha, t.Fecha_Inicio AS fecha_inicio,
-         t.Fecha_Entrega AS fecha_entrega, t.Estado_Tarea AS estado, t.Observaciones AS observaciones
+         t.Fecha_Entrega AS fecha_entrega, t.Estado_Tarea AS estado, t.Observaciones AS observaciones, D.Prioridad AS prioridad_manual
   FROM Tareas t
+  LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=t.ID_Tarea
   JOIN Proyectos p ON p.ID_Proyecto = t.ID_Proyecto
   JOIN Trabajadores w ON w.ID_Trabajador = t.ID_Trabajador
   JOIN Empleados e ON e.ID_Empleado = w.ID_Empleado`;
 
-const withPriority = (task, ahora) => ({ ...task, prioridad: priorityFor(task.fecha_entrega, task.estado, ahora) });
+const withPriority = (task, ahora) => ({ ...task, prioridad: task.prioridad_manual || priorityFor(task.fecha_entrega, task.estado, ahora) });
 
 async function loadTask(db, id, user) {
   const task = await db.prepare(`${SELECT} WHERE t.ID_Tarea = ?`).bind(id).first();
@@ -73,12 +74,15 @@ export async function detail({ env, user, params, tz }) {
 export async function create({ request, env, user, tz }) {
   const b = await readJson(request);
   const ahora = nowLocal(tz);
+  const prioridad = b.prioridad ?? null;
+  if (prioridad !== null && !['Alta','Media','Baja'].includes(prioridad)) throw new HttpError(400,'Prioridad no válida.');
 
   const trabajadorId = intParam(b.trabajador_id, { min: 1 });
   if (!trabajadorId) throw new HttpError(400, 'Selecciona un trabajador.');
   const worker = await env.DB.prepare(
     `SELECT T.ID_Trabajador FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado = T.ID_Empleado
-     WHERE T.ID_Trabajador = ? AND E.Estado = 'Activo'`,
+     LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado
+     WHERE T.ID_Trabajador = ? AND E.Estado = 'Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'`,
   ).bind(trabajadorId).first();
   if (!worker) throw new HttpError(400, 'El trabajador no existe o está inactivo.');
 
@@ -103,11 +107,12 @@ export async function create({ request, env, user, tz }) {
     throw new HttpError(400, 'Selecciona o crea un proyecto.');
   }
 
-  const res = await env.DB.prepare(
+  const statements = [env.DB.prepare(
     `INSERT INTO Tareas (ID_Trabajador, ID_Administrador_Asignador, ID_Proyecto, Fecha, Fecha_Inicio, Fecha_Entrega, Descripcion_Tarea)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(trabajadorId, user.id, proyectoId, ahora.fecha, inicio, entrega, descripcion).run();
-
+  ).bind(trabajadorId, user.id, proyectoId, ahora.fecha, inicio, entrega, descripcion),
+    env.DB.prepare('UPDATE Tareas_Detalle SET Prioridad=? WHERE ID_Tarea=last_insert_rowid()').bind(prioridad)];
+  const [res] = await env.DB.batch(statements);
   const task = await loadTask(env.DB, res.meta.last_row_id, user);
   return json({ message: 'Tarea creada.', task: withPriority(task, ahora.fechaHora) }, 201);
 }
@@ -117,17 +122,23 @@ export async function updateStatus({ request, env, user, params, tz }) {
   const b = await readJson(request);
   if (!ESTADOS.includes(b.estado)) throw new HttpError(400, `Estado no válido. Usa: ${ESTADOS.join(', ')}.`);
   const task = await loadTask(env.DB, id, user);
+  if(b.expected_estado !== undefined && b.expected_estado !== task.estado) throw new HttpError(409,'La tarea cambió. Vuelve a abrirla antes de resolver la entrega.');
 
-  if (user.rol === 'trabajador' && ESTADOS.indexOf(b.estado) <= ESTADOS.indexOf(task.estado)) {
-    throw new HttpError(409, 'Solo puedes avanzar el estado de la tarea.');
-  }
+  const next = user.rol === 'trabajador'
+    ? {Asignada:['En Progreso'],'En Progreso':['En revisión'],'En revisión':[],Completada:[]}
+    : {Asignada:['En Progreso'],'En Progreso':['En revisión'],'En revisión':['Completada','En Progreso'],Completada:['En Progreso']};
+  if (user.rol === 'trabajador' && b.estado === 'Completada') throw new HttpError(403,'Solo un administrador puede aprobar la entrega.');
+  if (b.estado !== task.estado && !next[task.estado]?.includes(b.estado)) throw new HttpError(409,'El cambio de estado no está permitido.');
+  if (user.rol === 'trabajador' && b.estado === task.estado) throw new HttpError(409,'La tarea ya tiene ese estado.');
+  if (task.estado === 'En revisión' && b.estado === 'En Progreso' && !(typeof b.observaciones==='string' && b.observaciones.trim())) throw new HttpError(400,'Indica el motivo para devolver la tarea.');
 
   const ahora = nowLocal(tz).fechaHora;
   let obs = b.observaciones === undefined ? (task.observaciones ?? '') : (text(b.observaciones, { field: 'Las observaciones', max: 500, required: false }) ?? '');
-  if (b.estado === 'Completada' && task.fecha_entrega && toMs(ahora) > toMs(task.fecha_entrega) && !obs.includes(LATE_TAG)) {
+  if (b.estado === 'En revisión' && task.fecha_entrega && toMs(ahora) > toMs(task.fecha_entrega) && !obs.includes(LATE_TAG)) {
     obs = `${LATE_TAG} ${obs}`.trim();
   }
-  await env.DB.prepare('UPDATE Tareas SET Estado_Tarea = ?, Observaciones = ? WHERE ID_Tarea = ?').bind(b.estado, obs, id).run();
+  const changed = await env.DB.prepare('UPDATE Tareas SET Estado_Tarea = ?, Observaciones = ? WHERE ID_Tarea = ? AND Estado_Tarea = ?').bind(b.estado, obs, id, task.estado).run();
+  if (!changed.meta.changes) throw new HttpError(409,'La tarea cambió. Vuelve a abrirla e inténtalo de nuevo.');
   return json({ message: 'Estado actualizado.', task: withPriority(await loadTask(env.DB, id, user), ahora) });
 }
 

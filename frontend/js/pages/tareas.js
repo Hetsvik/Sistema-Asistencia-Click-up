@@ -1,4 +1,5 @@
 import { Catalog, Tasks } from '../api.js';
+import { initDateTimePicker } from '../date-time-picker.js';
 import { ESTADOS, POLL_COMMENTS_MS } from '../config.js';
 import { initPage } from '../layout.js';
 import { $, $$, badgeEstado, badgePrioridad, debounce, esc, fmtDate, fmtDateTime, icon, openModal, toast, truncate, withBusy } from '../ui.js';
@@ -13,8 +14,8 @@ let tasks = [];
 
 // ---------- Listado ----------
 const actionFor = (t) => {
-  if (isAdmin || t.estado === 'Completada') return { label: 'Ver', next: null, cls: 'outline' };
-  return t.estado === 'Asignada' ? { label: 'Aceptar', next: 'En Progreso' } : { label: 'Completar', next: 'Completada' };
+  if (isAdmin || t.estado === 'Completada' || t.estado === 'En revisión') return { label: 'Ver', next: null, cls: 'outline' };
+  return t.estado === 'Asignada' ? { label: 'Aceptar', next: 'En Progreso' } : { label: 'Entregar', next: 'En revisión' };
 };
 
 function render() {
@@ -50,7 +51,7 @@ list.addEventListener('click', async (e) => {
   const a = actionFor(task);
   if (btn && a.next) {
     await withBusy(btn, async () => {
-      try { await Tasks.setStatus(task.id, a.next); toast(a.next === 'En Progreso' ? 'Tarea aceptada.' : 'Tarea completada.', 'success'); await load(); }
+      try { await Tasks.setStatus(task.id, a.next, undefined, task.estado); toast(a.next === 'En Progreso' ? 'Tarea aceptada.' : 'Entrega enviada a revisión.', 'success'); await load(); }
       catch (err) { toast(err.message, 'error'); }
     });
     return;
@@ -73,11 +74,14 @@ menu.addEventListener('click', (e) => {
 });
 $('#task-search').addEventListener('input', debounce((e) => { filters.q = e.target.value.trim(); load(); }, 350));
 
+document.addEventListener('erp:task-events',()=>load());
+
 // ---------- Detalle + chat ----------
 async function openDetail(id) {
   let task;
   try { task = (await Tasks.get(id)).task; } catch (err) { return toast(err.message, 'error'); }
 
+  const allowed = {Asignada:['En Progreso'],'En Progreso':['En revisión'],'En revisión':['Completada','En Progreso'],Completada:['En Progreso']};
   const modal = openModal({
     title: `Tarea · ${task.proyecto}`,
     wide: true,
@@ -93,8 +97,10 @@ async function openDetail(id) {
         ${task.observaciones ? `<div class="full"><dt>Observaciones</dt><dd>${esc(task.observaciones)}</dd></div>` : ''}
       </dl>
       ${isAdmin ? `<div class="inline-form"><label for="d-set">Cambiar estado</label>
-        <select id="d-set" class="input plain">${ESTADOS.map((s) => `<option ${s === task.estado ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        <select id="d-set" class="input plain">${[task.estado,...(allowed[task.estado]||[])].map((s) => `<option value="${s}" ${s === task.estado ? 'selected' : ''}>${s==='Completada'&&task.estado==='En revisión'?'Aprobar · Completada':s==='En Progreso'&&task.estado==='En revisión'?'Devolver · En progreso':s}</option>`).join('')}</select>
         <button type="button" class="btn sm" id="d-save">Guardar</button></div>` : ''}
+      ${isAdmin?'<label class="review-note">Observaciones de revisión<textarea class="input plain" id="d-review-note" maxlength="500" rows="2" placeholder="Obligatorio si devuelves la tarea para correcciones"></textarea></label>':''}
+      ${task.estado==='En revisión'?'<p class="review-hint">Entrega pendiente de aprobación del administrador.</p>':''}
       <h3 class="sub">Conversación</h3>
       <div class="chat" id="chat" aria-live="polite"></div>
       <form class="chat-form" id="chat-form">
@@ -130,49 +136,32 @@ async function openDetail(id) {
 
   $('#d-save', modal.el)?.addEventListener('click', (e) => withBusy(e.currentTarget, async () => {
     try {
-      const res = await Tasks.setStatus(id, $('#d-set', modal.el).value);
+      const res = await Tasks.setStatus(id, $('#d-set', modal.el).value, $('#d-review-note', modal.el).value.trim() || undefined, task.estado);
       $('#d-estado', modal.el).innerHTML = `${badgeEstado(res.task.estado)} ${badgePrioridad(res.task.prioridad)}`;
       toast('Estado actualizado.', 'success');
-      load();
+      modal.close();
+      await load();
     } catch (err) { toast(err.message, 'error'); }
   }));
 }
 
 // ---------- Crear tarea (admin) ----------
 async function openCreate() {
-  let users, projects;
-  try { [{ users }, { projects }] = await Promise.all([Catalog.users(), Catalog.projects()]); }
-  catch (err) { return toast(err.message, 'error'); }
-
-  const modal = openModal({
-    title: 'Añadir tarea',
-    html: `<form id="new-task" class="form-grid" novalidate>
-      <label class="full">Trabajador
-        <select class="input plain" name="trabajador_id" required><option value="">Selecciona…</option>
-          ${users.map((u) => `<option value="${u.id}">${esc(u.nombre)} · ${esc(u.cargo)}</option>`).join('')}</select></label>
-      <label class="full">Proyecto
-        <select class="input plain" name="proyecto_id" id="f-proj" required><option value="">Selecciona…</option>
-          ${projects.map((p) => `<option value="${p.id}">${esc(p.nombre)} (${esc(p.area)})</option>`).join('')}
-          <option value="__new">+ Nuevo proyecto…</option></select></label>
-      <label id="f-new-name" hidden>Nombre del proyecto<input class="input plain" name="np_nombre" maxlength="120"></label>
-      <label id="f-new-area" hidden>Área / departamento<input class="input plain" name="np_area" maxlength="80"></label>
-      <label class="full">Descripción
-        <textarea class="input plain" name="descripcion" rows="3" maxlength="500" required></textarea></label>
-      <label class="full">Fecha y hora de entrega
-        <input class="input plain" type="datetime-local" name="fecha_entrega" required></label>
-      <p class="form-message is-error full" id="f-error" hidden></p>
-      <div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button>
-        <button type="submit" class="btn">Crear tarea</button></div>
-    </form>`,
-  });
-
-  const form = $('#new-task', modal.el);
-  $('#f-proj', modal.el).addEventListener('change', (e) => {
-    const isNew = e.target.value === '__new';
-    $('#f-new-name', modal.el).hidden = !isNew;
-    $('#f-new-area', modal.el).hidden = !isNew;
-  });
-
+  let users, projects=[];
+  try {
+    users=(await Catalog.users()).users;
+    let before;
+    do {const data=await Catalog.projects({before});projects.push(...data.projects);before=data.has_more?data.next_before:null;} while(before);
+  } catch(err) {return toast(err.message,'error');}
+  const modal=openModal({title:'Añadir tarea',html:`<form id="new-task" class="form-grid">
+    <label class="full">Trabajador<select class="input plain" name="trabajador_id" required><option value="">Selecciona…</option>${users.map(u=>`<option value="${u.id}">${esc(u.nombre)} · ${esc(u.cargo)}</option>`).join('')}</select></label>
+    <label class="full">Proyecto<select class="input plain" name="proyecto_id" required><option value="">Selecciona…</option>${projects.map(p=>`<option value="${p.id}">${esc(p.nombre)} (${esc(p.area)})</option>`).join('')}</select></label>
+    <a class="project-form-link full" href="/admin/proyectos/nuevo">+ Crear un proyecto antes de asignar la tarea</a>
+    <label class="full">Descripción<textarea class="input plain" name="descripcion" rows="3" maxlength="500" required></textarea></label>
+    <label class="full">Prioridad<select class="input plain" name="prioridad" required><option>Alta</option><option selected>Media</option><option>Baja</option></select></label>
+    <div id="task-datetime" class="full"></div><p class="form-message is-error full" id="f-error" hidden role="alert"></p>
+    <div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button><button type="submit" class="btn">Crear tarea</button></div></form>`});
+  const form=$('#new-task',modal.el),picker=initDateTimePicker($('#task-datetime',form),{label:'Fecha y hora de entrega'});
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(form));
@@ -181,10 +170,10 @@ async function openCreate() {
     const body = {
       trabajador_id: Number(f.trabajador_id) || null,
       descripcion: f.descripcion,
-      fecha_entrega: f.fecha_entrega,
+      fecha_entrega: picker.getValue(),
+      prioridad: f.prioridad,
     };
-    if (f.proyecto_id === '__new') body.proyecto_nuevo = { nombre: f.np_nombre, area: f.np_area };
-    else body.proyecto_id = Number(f.proyecto_id) || null;
+    body.proyecto_id = Number(f.proyecto_id) || null;
 
     await withBusy($('[type=submit]', form), async () => {
       try {

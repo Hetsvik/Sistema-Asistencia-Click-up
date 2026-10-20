@@ -10,6 +10,8 @@ import * as auth from './routes/auth.js';
 import * as attendance from './routes/attendance.js';
 import * as tasks from './routes/tasks.js';
 import * as reports from './routes/reports.js';
+import * as projects from './routes/projects.js';
+import * as notifications from './routes/notifications.js';
 import * as users from './routes/users.js';
 import * as announcements from './routes/announcements.js';
 import * as userManagement from './routes/user-management.js';
@@ -37,7 +39,10 @@ router.get('/api/tasks/:id/comments', tasks.comments, { auth: 'any' });
 router.post('/api/tasks/:id/comments', tasks.addComment, { auth: 'any' });
 
 // Catálogos
-router.get('/api/projects', tasks.projects, { auth: 'admin' });
+router.get('/api/projects', projects.list, { auth: 'admin' });
+router.post('/api/projects', projects.create, { auth: 'admin' });
+router.get('/api/notifications', notifications.list, { auth: 'any' });
+router.post('/api/notifications/clear', notifications.clear, { auth: 'any' });
 router.get('/api/users', users.list, { auth: 'admin' });
 
 // Anuncios: lectura para ambos roles, creación exclusiva del administrador.

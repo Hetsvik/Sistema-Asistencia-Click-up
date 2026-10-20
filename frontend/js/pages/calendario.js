@@ -68,6 +68,7 @@ async function main() {
   $('#month-next').onclick = ()=>{view.setUTCMonth(view.getUTCMonth()+1);selected=iso(view);load();};
   $('#calendar-today').onclick = ()=>{selected=today;view=new Date(`${today.slice(0,7)}-01T00:00:00Z`);load();};
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
+  document.addEventListener('erp:task-events',()=>{ if(!document.hidden) load(); });
   await load();
 }
 main().catch(err=>console.error('Calendario:',err));

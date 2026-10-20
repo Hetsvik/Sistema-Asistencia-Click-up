@@ -52,13 +52,13 @@ export const Tasks = {
   list: (params) => request('GET', API.tasks, { params }),
   get: (id) => request('GET', API.task(id)),
   create: (body) => request('POST', API.tasks, { body }),
-  setStatus: (id, estado, observaciones) => request('PUT', API.taskStatus(id), { body: { estado, observaciones } }),
+  setStatus: (id, estado, observaciones, expected_estado) => request('PUT', API.taskStatus(id), { body: { estado, observaciones, expected_estado } }),
   comments: (id) => request('GET', API.taskComments(id)),
   addComment: (id, mensaje) => request('POST', API.taskComments(id), { body: { mensaje } }),
 };
 
 export const Catalog = {
-  projects: () => request('GET', API.projects),
+  projects: (params) => request('GET', API.projects, {params}),
   users: (q) => request('GET', API.users, { params: { q } }),
 };
 
@@ -77,4 +77,13 @@ export const ManagedUsers = {
   create: (body) => request('POST', API.managedUsers, { body }),
   update: (id, body) => request('PUT', API.managedUser(id), { body }),
   setStatus: (id, estado) => request('PUT', API.managedUserStatus(id), { body: { estado } }),
+};
+
+export const Notifications = {
+ list: params => request('GET',API.notifications,{params}),
+ clear: through_id => request('POST',API.clearNotifications,{body:{through_id}}),
+};
+export const Projects = {
+ list: params => request('GET',API.projects,{params}),
+ create: body => request('POST',API.projects,{body}),
 };

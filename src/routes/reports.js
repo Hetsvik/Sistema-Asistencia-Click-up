@@ -43,6 +43,7 @@ export async function summary({ env, user, url, tz }) {
     `SELECT COUNT(*) AS total,
             COALESCE(SUM(Estado_Tarea = 'Asignada'), 0) AS asignadas,
             COALESCE(SUM(Estado_Tarea = 'En Progreso'), 0) AS en_progreso,
+            COALESCE(SUM(Estado_Tarea = 'En revisión'), 0) AS en_revision,
             COALESCE(SUM(Estado_Tarea = 'Completada'), 0) AS completadas,
             COALESCE(SUM(Observaciones LIKE '%FUERA DE PLAZO%'), 0) AS fuera_de_plazo
      FROM Tareas WHERE Fecha BETWEEN ? AND ?${filtro}`,

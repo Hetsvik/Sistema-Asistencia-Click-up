@@ -288,3 +288,23 @@ h3.sub{font-family:var(--font-display);color:var(--gold-light);font-size:1.05rem
 @media(max-width:600px){.notif-panel{position:fixed;top:82px;right:18px;left:auto}.task{padding:16px;gap:10px}}
 /* Evita que una descripción larga invada la columna de fecha. */
 .task .desc{min-width:0;overflow-wrap:anywhere}
+/* Bandeja de eventos y entrega con revisión. */
+.notif-item time{font-size:14px;color:var(--text-dim);margin-top:4px}.notif-connection{font-size:14px;padding:10px 18px;color:var(--gold-light);border-bottom:1px solid var(--line)}
+.notif-older{border:0;background:none;color:var(--gold-light);min-height:44px;padding:10px 18px;width:100%;text-align:left;font:400 14px var(--font);cursor:pointer}.notif-older:hover{text-decoration:underline}
+.notif-item:focus-visible,.notif-older:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+.badge.estado-en-revisión{color:#efd486;border-color:#8d7838;background:rgba(212,175,55,.09)}
+.review-note{display:grid;gap:8px;font-size:14px;color:var(--text-dim);margin:18px 0}.review-hint{border-left:2px solid var(--gold);padding:8px 12px;color:var(--gold-light);font-size:14px;margin-bottom:18px}.project-form-link{color:var(--gold-light);font-size:14px;min-height:44px;padding:8px 0}.project-form-link:hover{text-decoration:underline}
+.date-time-picker{border:1px solid #8d7838;border-radius:10px;padding:16px;min-width:0;background:#111}
+.date-picker-head{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;font-size:15px;margin-bottom:16px}.date-picker-head>span:last-child{font-size:14px;color:var(--text-dim)}
+.picker-month{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.picker-month strong{text-transform:capitalize;color:var(--gold-light);font:600 22px var(--font-display);text-align:center}
+.picker-week,.picker-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.picker-week{font-size:14px;text-align:center;color:var(--text-dim);margin-bottom:8px}
+.picker-days button{min-width:0;min-height:44px;border:1px solid #8d7838;border-radius:5px;background:#1c1c1c;color:var(--text);font:400 15px var(--font);cursor:pointer;padding:0}
+.picker-days button[aria-pressed=true]{background:var(--gold-grad);color:#111}.picker-days button:hover{border-color:var(--gold-light)}.picker-days button:focus-visible{outline:2px solid var(--gold-light);outline-offset:1px}
+.picker-date{display:grid;gap:8px;margin-top:16px;font-size:14px;color:var(--text-dim)}.picker-date .input{color-scheme:dark;min-width:0;width:100%;font-size:16px;min-height:46px;border-color:#8d7838}
+.picker-time{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.picker-time label{display:grid;gap:8px;font-size:14px;color:var(--text-dim)}.picker-time .input{min-width:0;font-size:16px;min-height:46px;border-color:#8d7838;padding:10px}
+#new-task label{min-width:0;font-size:15px}#new-task .input{font-size:16px;min-height:44px;border-color:#8d7838}.inline-form{flex-wrap:wrap}.inline-form select{max-width:100%;min-width:0}
+@media(max-width:600px){.date-time-picker{padding:10px 8px}.picker-days,.picker-week{gap:2px}.picker-month{gap:6px}.picker-month strong{font-size:21px}.picker-time{gap:8px}.date-picker-head{font-size:14px}.date-time-picker .icon-btn{min-width:44px}.modal-body:has(#new-task){padding:18px 12px}.notif-panel{max-height:calc(100dvh - 100px)}}
+@media(max-width:600px){.date-time-picker{padding:12px 4px}.picker-days,.picker-week{gap:1px}#project-datetime{margin-inline:-12px}}
+/* Reserva espacio para el texto completo y la flecha de las decisiones de revisión. */
+#d-set{min-width:230px;padding-right:38px;max-width:100%}
+@media(max-width:600px){#d-set{width:100%;min-width:0}}

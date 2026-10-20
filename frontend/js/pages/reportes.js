@@ -29,6 +29,7 @@ function paint() {
       { label: 'Tardanzas', value: a.tardanzas, tone: 'warn' },
       { label: 'Asignadas', value: d.tareas.asignadas, tone: 'gold' },
       { label: 'En progreso', value: d.tareas.en_progreso, tone: 'gold' },
+      { label: 'En revisión', value: d.tareas.en_revision || 0, tone: 'warn' },
       { label: 'Completadas', value: d.tareas.completadas, tone: 'ok' },
     ]);
   }

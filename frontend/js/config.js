@@ -12,6 +12,8 @@ export const ROUTES = {
     anuncioNuevo: '/admin/anuncios/nuevo',
     calendario: '/admin/calendario',
     usuarios: '/admin/usuarios',
+    proyectos: '/admin/proyectos',
+    proyectoNuevo: '/admin/proyectos/nuevo',
     usuarioNuevo: '/admin/usuarios/nuevo',
     usuarioEditar: (id) => `/admin/usuarios/editar?id=${encodeURIComponent(id)}`,
   },
@@ -38,6 +40,8 @@ export const API = {
   taskStatus: (id) => `/api/tasks/${id}/status`,
   taskComments: (id) => `/api/tasks/${id}/comments`,
   projects: '/api/projects',
+  notifications: '/api/notifications',
+  clearNotifications: '/api/notifications/clear',
   users: '/api/users',
   reportSummary: '/api/reports/summary',
   announcements: '/api/announcements',
@@ -55,7 +59,7 @@ export const NAV = [
   { key: 'cuenta', label: 'Cuenta', icon: 'user', soon: true },
 ];
 
-export const ESTADOS = ['Asignada', 'En Progreso', 'Completada'];
+export const ESTADOS = ['Asignada', 'En Progreso', 'En revisión', 'Completada'];
 export const ROL_LABEL = { admin: 'Administrador', trabajador: 'Usuario' };
 export const POLL_COMMENTS_MS = 8000;
-export const POLL_NOTIFICATIONS_MS = 60000;
+export const POLL_NOTIFICATIONS_MS = 3000;

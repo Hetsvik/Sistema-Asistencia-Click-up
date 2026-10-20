@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#080808">
+<title>Configuración · Intranet Arquitectura &amp; Servicios Generales</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="/css/modulos.css">
+</head>
+<body data-role="admin" class="is-loading module-page">
+<noscript><p>Esta aplicación necesita JavaScript habilitado.</p></noscript>
+<div class="app"><main class="main">
+<header class="topbar">
+  <div><h1 class="page-title">Configuración</h1><p class="page-sub">Administra tu cuenta y personaliza tu experiencia</p></div>
+  <div class="top-actions">
+    <div class="notif-wrap"><button class="icon-btn" id="bell" type="button" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><span class="dot" hidden></span></button><div class="notif-panel" id="notif-panel" hidden></div></div>
+    <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú" role="button" tabindex="0"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
+  </div>
+</header>
+<div class="settings-layout"><nav class="settings-nav card" aria-label="Opciones de configuración">
+<a href="#mi-cuenta">Mi cuenta<small>Información personal y cargo</small></a><a href="#seguridad">Seguridad y contraseña<small>Protege tu cuenta</small></a><a href="#avisos">Notificaciones<small>Alertas de tareas</small></a><a href="#apariencia">Apariencia y preferencias<small>Personaliza tu experiencia</small></a><a href="#documentos">Mis documentos<small>Próxima conexión con R2</small></a><a href="#ayuda">Ayuda y soporte<small>Información del sistema</small></a></nav>
+<div class="settings-sections">
+<section class="settings-card card" id="mi-cuenta"><div class="settings-heading"><div><h2>Mi cuenta</h2><p>Revisa y actualiza tu información personal.</p></div><button class="btn sm outline" id="edit-profile" type="button">Editar</button></div><div id="profile-info" aria-live="polite"><p>Cargando información…</p></div></section>
+<section class="settings-card card" id="seguridad"><div class="settings-heading"><div><h2>Seguridad y contraseña</h2><p>Mantén tu cuenta segura.</p></div><button class="btn sm outline" id="change-password" type="button">Cambiar contraseña</button></div><p>El acceso utiliza tu código y contraseña. Al cambiar la contraseña se cierran las sesiones anteriores en todos tus dispositivos.</p><p class="muted">Por seguridad no se muestra ni se recupera la contraseña actual.</p></section>
+<section class="settings-card card" id="avisos"><div class="settings-heading"><div><h2>Notificaciones</h2><p>Elige qué avisos mostrar en esta cuenta y navegador.</p></div></div><label class="settings-toggle"><span>Tareas asignadas<small>Avisos cuando te asignen nuevas tareas.</small></span><input id="pref-assignments" type="checkbox" role="switch"></label><label class="settings-toggle"><span>Cambios de estado y revisión<small>Avances, entregas, devoluciones y aprobaciones.</small></span><input id="pref-status" type="checkbox" role="switch"></label><p class="muted">Ocultar un tipo de aviso no elimina su historial ni cambia el sondeo automático. No se añaden recordatorios nuevos ni avisos de documentos.</p></section>
+<section class="settings-card card" id="apariencia"><div class="settings-heading"><div><h2>Apariencia y preferencias</h2><p>Se guardan en este navegador, por cuenta.</p></div></div><div class="settings-options"><label>Tamaño del texto<select id="pref-text" class="input plain"><option value="normal">Normal</option><option value="large">Grande</option></select></label><div><span>Modo de color</span><p>Oscuro · negro y dorado</p></div><div><span>Idioma y horario</span><p>Español · Perú (UTC−5)</p></div></div><p id="preferences-status" role="status" class="muted"></p></section>
+<section class="settings-card card" id="documentos"><div class="settings-heading"><div><h2>Mis documentos</h2><p>Preparado para una futura integración con R2 Object Storage.</p></div><span class="badge">Sin conectar</span></div><p>Por ahora puedes seleccionar archivos desde el clip de una conversación y quitarlos antes de cerrar. No se suben, no se envían al otro usuario y no están disponibles para descargar o leer en el sistema.</p></section>
+<section class="settings-card card" id="ayuda"><div class="settings-heading"><div><h2>Ayuda y soporte</h2><p>Información de uso.</p></div></div><p>Los proyectos nuevos registran la fecha automáticamente con la hora de Perú. Al entregar una tarea queda En revisión hasta que el administrador la apruebe o devuelva.</p><p>Para problemas de acceso, contacta al administrador de tu organización. No compartas tu contraseña en una conversación.</p><a class="settings-link" href="/admin/tareas">Volver a mis tareas →</a></section>
+</div></div>
+</main></div>
+<script type="module" src="/js/pages/configuracion.js"></script>
+</body></html>

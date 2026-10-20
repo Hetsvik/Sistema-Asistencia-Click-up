@@ -1,18 +1,18 @@
 import { Projects } from '../api.js';
 import { initPage } from '../layout.js';
 import { enableMenuKeyboard } from '../page-tools.js';
-import { $, debounce, esc, fmtDateTime } from '../ui.js';
+import { $,debounce,esc,fmtDateTime } from '../ui.js';
 await initPage({role:'admin',page:'inicio'});enableMenuKeyboard();
-let before=null,q='',serial=0;
-async function load(append=false){
- const token=++serial;$('#project-error').hidden=true;$('#project-more').disabled=true;
+let page=1,serial=0;
+async function load(){
+ const token=++serial;$('#project-error').hidden=true;$('#project-list').setAttribute('aria-busy','true');$('#project-prev').disabled=$('#project-next').disabled=true;
  try{
-  const data=await Projects.list({q,before:append?before:null,limit:20});if(token!==serial)return;
-  const html=data.projects.map(p=>`<article class="project-card card"><span class="project-area">${esc(p.area)}</span><h2>${esc(p.nombre)}</h2><p class="project-description">${esc(p.descripcion||'Este proyecto fue creado antes de incorporar la descripción.')}</p><div class="project-card-footer"><span>Fecha del proyecto</span><time>${p.fecha?fmtDateTime(p.fecha):'Sin fecha registrada'}</time></div></article>`).join('');
-  if(append)$('#project-list').insertAdjacentHTML('beforeend',html);else $('#project-list').innerHTML=html||'<p class="agenda-message">No hay proyectos para mostrar.</p>';
-  before=data.next_before;$('#project-more').hidden=!data.has_more;
+  const data=await Projects.list({q:$('#project-search').value.trim(),order:$('#project-order').value,page,limit:10});if(token!==serial)return;page=data.page;
+  $('#project-list').innerHTML=data.projects.map(p=>`<article class="project-card project-row card"><div class="project-main"><span class="project-area">${esc(p.area)}</span><h2>${esc(p.nombre)}</h2><p class="project-description">${esc(p.descripcion||'Sin descripción registrada.')}</p></div><div class="project-meta"><span>Fecha registrada · Perú</span><time>${p.fecha?fmtDateTime(p.fecha):'Sin fecha histórica'}</time></div><a class="btn sm outline project-edit" href="/admin/proyectos/editar?id=${encodeURIComponent(p.id)}" aria-label="Editar proyecto ${esc(p.nombre)}">Editar</a></article>`).join('')||'<p class="agenda-message">No hay proyectos para mostrar.</p>';
+  $('#project-count').textContent=`${data.total} proyecto${data.total===1?'':'s'}`;$('#project-page').textContent=`Página ${page} de ${data.pages}`;
+  $('#project-prev').disabled=page<=1;$('#project-next').disabled=page>=data.pages;
  }catch(err){if(token===serial){$('#project-error').textContent=err.message;$('#project-error').hidden=false;}}
- finally{if(token===serial)$('#project-more').disabled=false;}
+ finally{if(token===serial)$('#project-list').setAttribute('aria-busy','false');}
 }
-$('#project-search').addEventListener('input',debounce(e=>{q=e.target.value.trim();load();},300));
-$('#project-more').onclick=()=>load(true);await load();
+$('#project-search').addEventListener('input',debounce(()=>{page=1;load();},300));$('#project-order').onchange=()=>{page=1;load();};
+$('#project-prev').onclick=()=>{page--;load();};$('#project-next').onclick=()=>{page++;load();};await load();

@@ -1,4 +1,5 @@
 // Bandeja de eventos persistentes. Un solo sondeo en vuelo, con pausa en segundo plano.
+import { readPreferences,noticeVisible } from './preferences.js';
 import { Notifications } from './api.js';
 import { POLL_NOTIFICATIONS_MS, ROUTES } from './config.js';
 import { $, esc, fmtDateTime, toast } from './ui.js';
@@ -13,13 +14,14 @@ export function initNotifications(user) {
  let items=[],cursor=0,before=null,more=false,initialized=false,busy=false,clearing=false,generation=0,timer,failures=0,signature='';
  bell.setAttribute('aria-controls','notif-panel');bell.setAttribute('aria-expanded','false');panel.setAttribute('aria-label','Notificaciones');
  const paint=()=>{
-  const next=JSON.stringify([items,more,failures>0,clearing]);if(signature===next)return;signature=next;
+  const prefs=readPreferences(user),visible=items.filter(n=>noticeVisible(n,prefs));
+  const next=JSON.stringify([items,more,failures>0,clearing,prefs]);if(signature===next)return;signature=next;
   const old=$('.notif-list',panel),scroll=old?.scrollTop||0,height=old?.scrollHeight||0;
   const focused=document.activeElement,focusId=focused?.dataset?.notice,focusClear=focused?.classList?.contains('notif-clear');
-  $('.dot',bell)?.toggleAttribute('hidden',items.length===0);
-  panel.innerHTML=`<div class="notif-head"><span>Notificaciones</span><span class="notif-count">${items.length}${more?'+':''}</span></div>
+  $('.dot',bell)?.toggleAttribute('hidden',visible.length===0);
+  panel.innerHTML=`<div class="notif-head"><span>Notificaciones</span><span class="notif-count">${visible.length}${more?'+':''}</span></div>
    ${failures?'<p class="notif-connection" role="status">Sin conexión. Se reintentará automáticamente.</p>':''}
-   <div class="notif-list" tabindex="0" role="region" aria-label="Lista de notificaciones">${items.length?items.map(n=>`<a class="notif-item" data-notice="${n.id}" href="${ROUTES[user.rol].tareas}?tarea=${encodeURIComponent(n.tarea_id)}"><strong>${esc(notificationText(n))}</strong><span>${esc(n.descripcion)}</span><span>Entrega: ${fmtDateTime(n.fecha_entrega)}</span>${n.tipo==='Devuelta'&&n.observaciones?`<span>Motivo: ${esc(n.observaciones)}</span>`:''}<time datetime="${esc(n.fecha)}">${esc(new Intl.DateTimeFormat('es-PE',{dateStyle:'short',timeStyle:'short',timeZone:'America/Lima'}).format(new Date(n.fecha)))}</time></a>`).join(''):'<p class="notif-empty">No tienes notificaciones nuevas.</p>'}${more?'<button type="button" class="notif-older">Ver anteriores</button>':''}</div>
+   <div class="notif-list" tabindex="0" role="region" aria-label="Lista de notificaciones">${visible.length?visible.map(n=>`<a class="notif-item" data-notice="${n.id}" href="${ROUTES[user.rol].tareas}?tarea=${encodeURIComponent(n.tarea_id)}"><strong>${esc(notificationText(n))}</strong><span>${esc(n.descripcion)}</span><span>Entrega: ${fmtDateTime(n.fecha_entrega)}</span>${n.tipo==='Devuelta'&&n.observaciones?`<span>Motivo: ${esc(n.observaciones)}</span>`:''}<time datetime="${esc(n.fecha)}">${esc(new Intl.DateTimeFormat('es-PE',{dateStyle:'short',timeStyle:'short',timeZone:'America/Lima'}).format(new Date(n.fecha)))}</time></a>`).join(''):`<p class="notif-empty">${items.length?'No hay avisos visibles según tus preferencias.':'No tienes notificaciones nuevas.'}</p>`}${more?'<button type="button" class="notif-older">Ver anteriores</button>':''}</div>
    <div class="notif-footer"><button type="button" class="notif-clear" ${!items.length||clearing?'disabled':''}>${clearing?'Limpiando…':'Eliminar todas'}</button></div>`;
   const list=$('.notif-list',panel);list.scrollTop=scroll>0?Math.max(0,scroll+Math.max(0,list.scrollHeight-height)):0;
   if(focusId)$(`[data-notice="${focusId}"]`,panel)?.focus({preventScroll:true});
@@ -68,5 +70,7 @@ export function initNotifications(user) {
  document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(!document.hidden)refresh();});
  window.addEventListener('online',refresh);window.addEventListener('offline',()=>{clearTimeout(timer);failures++;paint();});
  window.addEventListener('pagehide',()=>clearTimeout(timer));
+ document.addEventListener('erp:preferences',paint);
+ window.addEventListener('storage',()=>{paint();});
  paint();refresh();
 }

@@ -14,11 +14,14 @@ export const ROUTES = {
     usuarios: '/admin/usuarios',
     proyectos: '/admin/proyectos',
     proyectoNuevo: '/admin/proyectos/nuevo',
+    proyectoEditar: id => `/admin/proyectos/editar?id=${encodeURIComponent(id)}`,
+    configuracion: '/admin/configuracion',
     usuarioNuevo: '/admin/usuarios/nuevo',
     usuarioEditar: (id) => `/admin/usuarios/editar?id=${encodeURIComponent(id)}`,
   },
   trabajador: {
     inicio: '/usuarios/inicio',
+    configuracion: '/usuarios/configuracion',
     asistencia: '/usuarios/asistencia',
     tareas: '/usuarios/tareas',
     reportes: '/usuarios/reportes',
@@ -56,7 +59,6 @@ export const NAV = [
   { key: 'anuncios', label: 'Anuncios', icon: 'mega', href: (rol) => ROUTES[rol].anuncios },
   { key: 'calendario', label: 'Calendario', icon: 'cal', href: (rol) => ROUTES[rol].calendario },
   { key: 'usuarios', label: 'Usuarios', icon: 'users', href: (rol) => ROUTES[rol].usuarios, roles: ['admin'] },
-  { key: 'cuenta', label: 'Cuenta', icon: 'user', soon: true },
 ];
 
 export const ESTADOS = ['Asignada', 'En Progreso', 'En revisión', 'Completada'];

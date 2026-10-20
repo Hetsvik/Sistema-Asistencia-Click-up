@@ -1,4 +1,5 @@
 // Estructura común de las páginas internas: barra lateral, notificaciones y guardas de sesión.
+import { applyPreferences } from './preferences.js';
 import { initNotifications } from './notifications.js';
 import { NAV, ROL_LABEL, ROUTES } from './config.js';
 import { requireSession, logout } from './session.js';
@@ -20,7 +21,7 @@ const sidebarHtml = (user, page) => {
       <span class="role">${ROL_LABEL[user.rol]}</span>
     </div>
     <nav class="nav">${items}<div class="sep"></div>
-      <a href="#" data-soon>${icon('cog')}Configuración</a>
+      <a href="${ROUTES[user.rol].configuracion}" class="${page==='configuracion'?'active':''}">${icon('cog')}Configuración</a>
       <a href="${ROUTES.login}" class="logout" data-logout>${icon('out')}Cerrar Sesión</a>
     </nav>
   </aside>`;
@@ -45,6 +46,7 @@ export async function initPage({ role, page }) {
 
   $$('[data-soon]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); toast('Esta sección estará disponible pronto.'); }));
   $('[data-logout]').addEventListener('click', (e) => { e.preventDefault(); logout(); });
+  applyPreferences(user);
   initNotifications(user);
   document.body.classList.remove('is-loading');
   return user;

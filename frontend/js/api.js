@@ -86,4 +86,13 @@ export const Notifications = {
 export const Projects = {
  list: params => request('GET',API.projects,{params}),
  create: body => request('POST',API.projects,{body}),
+ get: id => request('GET',`${API.projects}/${encodeURIComponent(id)}`),
+ update: (id,body) => request('PUT',`${API.projects}/${encodeURIComponent(id)}`,{body}),
+ remove: id => request('DELETE',`${API.projects}/${encodeURIComponent(id)}`),
+};
+
+export const Account = {
+ get: () => request('GET','/api/account'),
+ update: body => request('PUT','/api/account',{body}),
+ password: body => request('PUT','/api/account/password',{body}),
 };

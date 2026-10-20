@@ -95,13 +95,13 @@ export async function create({ request, env, user, tz }) {
 
   let proyectoId = intParam(b.proyecto_id, { min: 1 });
   if (proyectoId) {
-    if (!(await env.DB.prepare('SELECT 1 AS ok FROM Proyectos WHERE ID_Proyecto = ?').bind(proyectoId).first())) {
+    if (!(await env.DB.prepare('SELECT 1 AS ok FROM Proyectos P WHERE P.ID_Proyecto = ? AND NOT EXISTS(SELECT 1 FROM Proyectos_Control C WHERE C.ID_Proyecto=P.ID_Proyecto AND C.Eliminado_En IS NOT NULL)').bind(proyectoId).first())) {
       throw new HttpError(400, 'El proyecto no existe.');
     }
   } else if (b.proyecto_nuevo && typeof b.proyecto_nuevo === 'object') {
     const nombre = text(b.proyecto_nuevo.nombre, { field: 'El nombre del proyecto', max: 120 });
     const area = text(b.proyecto_nuevo.area, { field: 'El área', max: 80 });
-    const res = await env.DB.prepare('INSERT INTO Proyectos (Nombre_Proyecto, Area_Departamento) VALUES (?, ?)').bind(nombre, area).run();
+    const [res] = await env.DB.batch([env.DB.prepare('INSERT INTO Proyectos (Nombre_Proyecto, Area_Departamento) VALUES (?, ?)').bind(nombre, area),env.DB.prepare('INSERT INTO Proyectos_Detalle(ID_Proyecto,Descripcion,Fecha_Programada) VALUES(last_insert_rowid(),?,?)').bind('',nowLocal('America/Lima').fechaHora)]);
     proyectoId = res.meta.last_row_id;
   } else {
     throw new HttpError(400, 'Selecciona o crea un proyecto.');

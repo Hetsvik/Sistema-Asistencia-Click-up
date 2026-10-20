@@ -1,3 +1,4 @@
+import { initAttachments } from '../attachments.js';
 import { Catalog, Tasks } from '../api.js';
 import { initDateTimePicker } from '../date-time-picker.js';
 import { ESTADOS, POLL_COMMENTS_MS } from '../config.js';
@@ -82,10 +83,11 @@ async function openDetail(id) {
   try { task = (await Tasks.get(id)).task; } catch (err) { return toast(err.message, 'error'); }
 
   const allowed = {Asignada:['En Progreso'],'En Progreso':['En revisión'],'En revisión':['Completada','En Progreso'],Completada:['En Progreso']};
+  let timer,attachments;
   const modal = openModal({
     title: `Tarea · ${task.proyecto}`,
     wide: true,
-    onClose: () => clearInterval(timer),
+    onClose: () => {clearInterval(timer);attachments?.destroy();},
     html: `
       <dl class="detail">
         <div><dt>Descripción</dt><dd>${esc(task.descripcion)}</dd></div>
@@ -109,6 +111,7 @@ async function openDetail(id) {
       </form>`,
   });
 
+  attachments=initAttachments(modal.el);
   const chat = $('#chat', modal.el);
   const paintChat = async () => {
     try {
@@ -121,7 +124,7 @@ async function openDetail(id) {
       if (stick) chat.scrollTop = chat.scrollHeight;
     } catch { /* se reintenta en el siguiente ciclo */ }
   };
-  const timer = setInterval(paintChat, POLL_COMMENTS_MS);
+  timer = setInterval(paintChat, POLL_COMMENTS_MS);
   await paintChat();
   chat.scrollTop = chat.scrollHeight;
 

@@ -1,64 +1,26 @@
-import { Attendance } from '../api.js';
-import { initPage } from '../layout.js';
-import { $, debounce, esc, fmtDate, fmtTime, toast, withBusy } from '../ui.js';
-
-const role = document.body.dataset.role;
-await initPage({ role, page: 'inicio' });
-
-// ---- Reloj (zona horaria de la empresa; la entrega el servidor en /attendance/today) ----
-let companyTz; // undefined = zona del navegador
-const tick = () => {
-  const now = new Date();
-  $('#clock-time').textContent = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: companyTz });
-  $('#clock-date').textContent = now.toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: companyTz });
-};
-tick();
-setInterval(tick, 1000);
-
-// ---- Historial ----
-const body = $('#att-body');
-const rowHtml = (r) => `<tr>
-  ${role === 'admin' ? `<td>${esc(r.nombre)}</td>` : ''}
-  <td>${fmtDate(r.fecha)}</td><td>${fmtTime(r.entrada)}</td>
-  <td>${r.salida ? fmtTime(r.salida) : '<span class="muted">—</span>'}</td>
-  <td><span class="badge ${r.estado === 'A tiempo' ? 'baja' : 'media'}">${esc(r.estado)}</span></td></tr>`;
-
-async function loadHistory() {
-  const q = $('#att-search')?.value.trim();
-  try {
-    const { records } = await Attendance.list({ q, limit: 100 });
-    const cols = role === 'admin' ? 5 : 4;
-    body.innerHTML = records.length ? records.map(rowHtml).join('')
-      : `<tr><td colspan="${cols}" class="empty">Sin registros de asistencia.</td></tr>`;
-  } catch (err) { toast(err.message, 'error'); }
+import {Attendance} from '../api.js';import {initPage} from '../layout.js';import {enableMenuKeyboard} from '../page-tools.js';
+import {$,debounce,esc,fmtDate,fmtTime,toast,withBusy} from '../ui.js';
+const role=document.body.dataset.role,admin=role==='admin';await initPage({role,page:'inicio'});enableMenuKeyboard();
+const start=new Date(Date.now()-29*86400000);$('#att-from').value=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(start);
+let offset=0,historyBusy=false,historyPending=false,view='daily',dailyBusy=false,dailyPage=1,nextSlot=null,todayBusy=false;
+async function history(){if(historyBusy){historyPending=true;return;}historyBusy=true;try{const {records}=await Attendance.list({q:$('#att-search')?.value.trim(),desde:$('#att-from').value,hasta:$('#att-to').value,limit:50,offset});
+ $('#att-body').innerHTML=records.length?records.map(r=>`<tr>${admin?`<td>${esc(r.nombre)}</td>`:''}<td>${fmtDate(r.fecha)}<small class="cell-note">${r.tramo?'Tramo '+r.tramo:'Registro anterior · sin evaluación por horario'}</small></td><td>${r.entrada?fmtTime(r.entrada):'Sin entrada'}</td><td>${r.salida?fmtTime(r.salida):'—'}</td><td><span class="badge ${r.falta?'alta':r.estado==='A tiempo'?'baja':'media'}">${esc(r.estado)}</span>${r.motivo?`<small class="cell-note">${esc(r.motivo)}</small>`:''}</td></tr>`).join(''):`<tr><td colspan="${admin?5:4}" class="empty">Sin registros en este periodo.</td></tr>`;
+ $('#history-page').textContent=`Página ${offset/50+1}`;$('#history-prev').disabled=offset===0;$('#history-next').disabled=records.length<50;
+ }catch(e){toast(e.message,'error');}finally{historyBusy=false;if(historyPending){historyPending=false;history();}}}
+for(const id of ['att-search','att-from','att-to'])$('#'+id)?.addEventListener('input',debounce(()=>{offset=0;history();},350));
+$('#history-prev').onclick=()=>{if(!historyBusy){offset=Math.max(0,offset-50);history();}};$('#history-next').onclick=()=>{if(!historyBusy){offset+=50;history();}};
+if(admin){
+ const switchView=v=>{view=v;$('#daily-panel').hidden=v!=='daily';$('#history-panel').hidden=v==='daily';for(const key of ['daily','history']){const el=$('#'+key+'-tab'),on=v===key;el.setAttribute('aria-selected',String(on));el.tabIndex=on?0:-1;el.classList.toggle('outline',!on);}if(v==='history')history();else daily();};
+ for(const key of ['daily','history']){$('#'+key+'-tab').onclick=()=>switchView(key);$('#'+key+'-tab').onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?'daily':e.key==='End'?'history':key==='daily'?'history':'daily';switchView(next);$('#'+next+'-tab').focus();}};}
+ async function daily(){if(dailyBusy||view!=='daily'||document.hidden)return;dailyBusy=true;try{const d=await Attendance.daily({q:$('#daily-search').value.trim(),page:dailyPage});dailyPage=d.page;$('#daily-date').textContent=`${fmtDate(d.fecha)} · Hora de Perú · ${d.total} trabajadores`;$('#daily-list').innerHTML=d.workers.length?d.workers.map(w=>`<article class="daily-worker"><div><h3>${esc(w.nombre)}</h3><span class="badge ${w.faltas?'alta':w.estado==='Presente'?'baja':''}">${esc(w.estado)}</span>${w.faltas?`<small class="cell-note">${w.faltas} falta(s) por tramo</small>`:''}</div><div class="daily-slots">${w.tramos.map(s=>`<p><strong>Tramo ${s.tramo} · ${esc(s.inicio)}–${esc(s.fin)}</strong><span>${esc(s.estado)} · Entrada: ${s.entrada?fmtTime(s.entrada):'—'} · Salida: ${s.salida?fmtTime(s.salida):'—'}</span></p>`).join('')||`<p>${w.registro_anterior?`Entrada: ${fmtTime(w.registro_anterior.entrada)} · Salida: ${w.registro_anterior.salida?fmtTime(w.registro_anterior.salida):'—'}`:w.estado==='Descanso'?'Sin jornada prevista hoy':'Sin horario vigente; no se calculan faltas'}</p>`}</div></article>`).join(''):'<p class="empty">No hay trabajadores con ese nombre.</p>';$('#daily-refresh').textContent='Actualización automática · cada 3 s';$('#daily-page').textContent=`Página ${d.page} de ${d.pages}`;$('#daily-prev').disabled=d.page<=1;$('#daily-next').disabled=d.page>=d.pages;
+ }catch(e){$('#daily-refresh').textContent='No se pudo actualizar: '+e.message;}finally{dailyBusy=false;}}
+ $('#daily-search').addEventListener('input',debounce(()=>{dailyPage=1;daily();},350));$('#daily-prev').onclick=()=>{dailyPage=Math.max(1,dailyPage-1);daily();};$('#daily-next').onclick=()=>{dailyPage++;daily();};await daily();setInterval(daily,3000);
+}else{
+ const tick=()=>{const n=new Date();$('#clock-time').textContent=n.toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit'});$('#clock-date').textContent=n.toLocaleDateString('es-PE',{timeZone:'America/Lima',weekday:'long',day:'numeric',month:'long'});};tick();setInterval(tick,1000);
+ async function today(){if(todayBusy||document.hidden)return;todayBusy=true;try{const d=await Attendance.today(),p=d.plan;$('#my-plan').innerHTML=p.tramos.map(s=>`<article class="card"><h2>Tramo ${s.tramo} · ${esc(s.inicio)}–${esc(s.fin)}</h2><p>${esc(s.estado)}</p><p class="muted">Entrada: ${s.entrada?fmtTime(s.entrada):'—'} · Salida: ${s.salida?fmtTime(s.salida):'—'}</p></article>`).join('');
+ if(p.configurado||p.fijado){const open=p.tramos.some(s=>s.entrada&&!s.salida);nextSlot=p.tramos.find((s,i)=>!s.entrada&&d.hora<s.fin+':00'&&(i===0||d.hora>=p.tramos[i-1].fin+':00'))?.tramo||null;$('#btn-in').disabled=open||!nextSlot;$('#btn-out').disabled=!open;$('#att-status').textContent=p.tramos.length?'Cada entrada tiene 10 minutos de tolerancia. Pasado el límite se registra una falta por tramo.': 'Hoy es día de descanso según tu horario.';}
+ else{nextSlot=null;$('#btn-in').disabled=!!d.registro;$('#btn-out').disabled=!d.registro||!!d.registro.salida;$('#att-status').textContent=d.registro?(d.registro.salida?'Jornada cerrada.':'Entrada registrada.'):'Sin horario vigente: marcación diaria sin cálculo de faltas. Un horario nuevo rige desde mañana.';}
+ }catch(e){$('#att-status').textContent=e.message;$('#btn-in').disabled=true;$('#btn-out').disabled=true;}finally{todayBusy=false;}}
+ for(const [id,call] of [['btn-in',()=>Attendance.checkIn(nextSlot)],['btn-out',()=>Attendance.checkOut()]])$('#'+id).onclick=()=>withBusy($('#'+id),async()=>{try{const r=await call();toast(r.message,'success');}catch(e){toast(e.message,'error');}}).then(()=>{today();history();});
+ await today();await history();setInterval(today,3000);
 }
-$('#att-search')?.addEventListener('input', debounce(loadHistory, 350));
-
-// ---- Marcación (solo trabajadores) ----
-if (role === 'trabajador') {
-  const btnIn = $('#btn-in');
-  const btnOut = $('#btn-out');
-  const status = $('#att-status');
-
-  const paint = (registro) => {
-    btnIn.disabled = !!registro;
-    btnOut.disabled = !registro || !!registro.salida;
-    status.textContent = !registro ? 'Aún no has marcado tu entrada hoy.'
-      : registro.salida ? `Jornada completada: ${fmtTime(registro.entrada)} – ${fmtTime(registro.salida)}.`
-      : `Entrada registrada a las ${fmtTime(registro.entrada)} (${registro.estado}).`;
-  };
-
-  const act = (btn, call, ok) => btn.addEventListener('click', async () => {
-    let registro;
-    await withBusy(btn, async () => {
-      try { ({ registro } = await call()); toast(ok, 'success'); } catch (err) { toast(err.message, 'error'); }
-    });
-    if (registro) { paint(registro); loadHistory(); } // se pinta después: withBusy restaura el botón al terminar
-  });
-  act(btnIn, Attendance.checkIn, 'Entrada registrada.');
-  act(btnOut, Attendance.checkOut, 'Salida registrada.');
-
-  try { const t = await Attendance.today(); companyTz = t.tz; tick(); paint(t.registro); } catch (err) { toast(err.message, 'error'); }
-}
-
-loadHistory();

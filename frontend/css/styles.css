@@ -312,3 +312,30 @@ h3.sub{font-family:var(--font-display);color:var(--gold-light);font-size:1.05rem
 .chat-form{display:grid;grid-template-columns:44px minmax(0,1fr) 60px}.chat-attach,.attachment-remove{display:grid;place-items:center;min-width:44px;min-height:44px;border:1px solid #d8b83a40;background:transparent;color:#e4c44a;border-radius:8px;cursor:pointer}.chat-attach:hover,.attachment-remove:hover{background:#d5ad2815}.chat-attach .i{width:20px;height:20px}.attachment-preview{margin-top:14px;padding:14px;border:1px solid #d8b83a30;border-radius:10px;background:#101010}.attachment-preview[hidden]{display:none}.attachment-note,.attachment-preview .muted{font-size:14px;line-height:1.6;color:var(--text-dim)}.attachment-preview ul{margin:12px 0;padding:0;list-style:none;display:grid;gap:8px}.attachment-preview li{display:flex;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid #d8b83a20;padding-top:8px}.attachment-preview li>span{min-width:0}.attachment-preview strong{overflow-wrap:anywhere}.attachment-preview small{display:block;color:var(--text-dim);font-size:13px;margin-top:4px}.attachment-remove{flex-shrink:0}.attachment-errors{color:#ffb4a7;font-size:14px;overflow-wrap:anywhere}.attachment-errors:empty{display:none}
 html[data-text="large"] body{font-size:18px}html[data-text="large"] .input{font-size:18px}html[data-text="large"] .task .name,html[data-text="large"] .task .desc,html[data-text="large"] .settings-card p{font-size:17px}
 @media(max-width:600px){.chat-form{display:grid;grid-template-columns:44px minmax(0,1fr) 48px;gap:8px}.chat-form .input{padding-inline:10px;min-width:0}.chat-form .btn{min-width:44px;padding:10px}.chat-form .chat-attach{padding:0}}
+
+/* Apariencia global: todos los módulos, diálogos, acceso y gráficos. */
+html[data-theme=light]{--bg:#f7f5ee;--bg-2:#fffdf7;--surface:#fff;--surface-2:#f3f0e6;--surface-3:#eae5d8;--text:#29261f;--text-dim:#625c4e;--text-faint:#756e60;--gold:#876515;--gold-light:#77540c;--gold-dark:#77540c;--line:#ded4b7;--line-strong:#a58b45;--shadow:0 4px 18px rgba(67,50,15,.06);--ok:#26704b;--warn:#885e09;--danger:#b13c31;color-scheme:light}
+html[data-theme=light] .module-page{--text-dim:#625c4e;--text-faint:#756e60}
+html[data-theme=light] .sidebar{background:linear-gradient(#fffdf7,#f4f0e4)}
+html[data-theme=light] .page-title{background:none;color:var(--gold-light);-webkit-text-fill-color:currentColor}
+html[data-theme=light] :is(.date-time-picker,.attachment-preview,.calendar-cell.other-month,.calendar-day.other-month){background:var(--bg-2)}
+html[data-theme=light] .picker-days button{background:var(--surface-2)}
+html[data-theme=light] .picker-days button[aria-pressed=true]{background:var(--gold-grad)}
+html[data-theme=light] :is(.picker-date .input,.schedule-slot input){color-scheme:light}
+html[data-theme=light] :is(.settings-nav a[aria-current],.settings-nav a:hover,.settings-link,.settings-avatar,.chat-attach,.attachment-remove){color:var(--gold-light)}
+html[data-theme=light] :is(.form-message.is-error,.module-message.error,.schedule-day-error,.attachment-errors,.toast.error){color:#9c3028}
+html[data-theme=light] :is(.badge.baja,.badge.estado-completada){color:#256c44}
+html[data-theme=light] :is(.badge.media,.badge.estado-en-revisión){color:#805b0d}
+html[data-theme=light] .badge.alta{color:#a33126}
+html[data-theme=light] .auth-card{background:var(--surface);border-color:var(--line-strong)}
+html[data-theme=light] .auth-feature-list{color:var(--text-dim)}
+html[data-theme=light] #gold-wave-canvas{opacity:.18}
+html[data-text=large]{font-size:18px}
+html[data-text=large] :is(.module-page,.module-page .input,.module-page .form-field input,.module-page .form-field select,.module-page td,.settings-card p,.task .desc,.task .name,.agenda-description,.project-description){font-size:18px}
+html[data-text=large] :is(.settings-nav a,.settings-profile dl,.settings-profile p,.settings-toggle small,.field-help,.module-page .btn,.module-page .form-field label,.notif-list,.schedule-slot label){font-size:16px}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
+.topbar>div:first-child{min-width:0}.top-actions{flex-shrink:0}
+@media(max-width:650px){.topbar{align-items:flex-start}.page-title{font-size:1.45rem;letter-spacing:.035em;overflow-wrap:anywhere}.topbar>div:first-child{flex:1}.top-actions{gap:8px}}
+@media(max-width:650px){html[data-text=large] .page-title{font-size:1.32rem;letter-spacing:.02em}}
+html[data-theme=light] :is(.auth-brand,.auth-card-wrap){background:transparent;backdrop-filter:none}
+html[data-theme=light] .auth-copy h1{background:none;color:var(--gold-light)}

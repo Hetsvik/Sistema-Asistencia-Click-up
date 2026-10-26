@@ -26,6 +26,7 @@ router.post('/api/auth/logout', auth.logout, { auth: false });
 router.get('/api/auth/me', auth.me, { auth: 'any' });
 
 // Asistencia
+router.get('/api/attendance/daily', attendance.daily, { auth: 'admin' });
 router.get('/api/attendance/today', attendance.today, { auth: 'trabajador' });
 router.post('/api/attendance/check-in', attendance.checkIn, { auth: 'trabajador' });
 router.put('/api/attendance/check-out', attendance.checkOut, { auth: 'trabajador' });

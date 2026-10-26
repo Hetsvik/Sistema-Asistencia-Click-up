@@ -2,14 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script src="/js/theme-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#080808">
 <title>Asistencia · Intranet Arquitectura &amp; Servicios Generales</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="/css/modulos.css">
 </head>
-<body data-role="admin" class="is-loading">
+<body class="is-loading module-page" data-role="admin">
 <noscript><p style="padding:2rem;color:#f3d98b">Esta aplicación necesita JavaScript habilitado.</p></noscript>
 <div class="app">
   <main class="main">
@@ -26,21 +28,12 @@
         <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
       </div>
     </header>
-    <section class="attendance-top">
-      <div class="clock"><span>Hora actual</span><b id="clock-time">--:--</b><span id="clock-date">&nbsp;</span></div>
-
-    </section>
-    <section class="card">
-      <h2>Registro de asistencia</h2>
-      <div class="toolbar">
-        <div class="field"><label for="att-search">Consultar Asistencia:</label>
-          <div class="search grow"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="att-search" class="input" type="search" placeholder="Buscar por nombre"></div></div>
-      </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Trabajador</th><th>Fecha</th><th>Hora Ingreso</th><th>Hora Salida</th><th>Estado</th></tr></thead>
-        <tbody id="att-body"><tr><td colspan="5" class="empty">Cargando…</td></tr></tbody>
-      </table></div>
-    </section>
+<div class="attendance-tabs" role="tablist" aria-label="Vistas de asistencia"><button class="btn" type="button" id="daily-tab" role="tab" aria-selected="true" aria-controls="daily-panel">Asistencia de hoy</button><button class="btn outline" type="button" id="history-tab" role="tab" aria-selected="false" aria-controls="history-panel" tabindex="-1">Historial</button></div>
+<section class="card" id="daily-panel" role="tabpanel" aria-labelledby="daily-tab"><div class="metrics-heading"><div><h2>Equipo · asistencia diaria</h2><p id="daily-date" class="muted"></p></div><span id="daily-refresh" role="status">Actualizando…</span></div><label class="metrics-search">Buscar trabajador<input class="input plain" type="search" id="daily-search" placeholder="Nombre del trabajador"></label><div id="daily-list" class="daily-list" aria-live="polite"></div><div class="metrics-pagination"><button class="btn outline" id="daily-prev" type="button">Anterior</button><span id="daily-page"></span><button class="btn outline" id="daily-next" type="button">Siguiente</button></div></section><section class="card" id="history-panel" role="tabpanel" aria-labelledby="history-tab" hidden>
+<h2 id="history-heading">Historial del equipo</h2>
+<div class="metrics-toolbar"><label>Trabajador<input class="input plain" id="att-search" type="search" placeholder="Buscar por nombre"></label><label>Desde<input class="input plain" id="att-from" type="date"></label><label>Hasta<input class="input plain" id="att-to" type="date"></label></div>
+<div class="table-wrap"><table><thead><tr><th>Trabajador</th><th>Fecha / tramo</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead><tbody id="att-body"></tbody></table></div>
+<div class="metrics-pagination"><button class="btn outline" id="history-prev" type="button">Anterior</button><span id="history-page" role="status"></span><button class="btn outline" id="history-next" type="button">Siguiente</button></div></section>
   </main>
 </div>
 <script type="module" src="/js/pages/asistencia.js"></script>

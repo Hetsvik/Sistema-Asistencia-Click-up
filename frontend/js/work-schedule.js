@@ -11,7 +11,7 @@ export function initWorkSchedule(root){
  <p class="field-help">Horas de 00:00 a 23:59. Añade un segundo tramo si hay una pausa; el descanso no suma horas. Cada tramo debe terminar el mismo día.</p>
  <div id="schedule-days"></div></div>
  <p class="schedule-summary" id="schedule-summary" role="status" aria-live="polite"></p>
- <p class="field-help">Se guarda al pulsar Crear Usuario o Guardar Cambios. No modifica las marcaciones ni aplica sanciones de asistencia.</p>`;
+ <p class="field-help">Se guarda al pulsar Crear Usuario o Guardar Cambios. Los cambios rigen desde mañana (Perú). La entrada de cada tramo tiene 10 minutos de tolerancia.</p>`;
  const enabled=root.querySelector('#schedule-enabled'),editor=root.querySelector('#schedule-editor'),container=root.querySelector('#schedule-days'),summary=root.querySelector('#schedule-summary');
  function updateSummary(){
   if(!configured){summary.textContent='Sin horario configurado';return;}

@@ -1,61 +1,12 @@
-import { Catalog, Reports } from '../api.js';
-import { drawBarChart } from '../chart.js';
-import { initPage } from '../layout.js';
-import { $, debounce, esc, toast } from '../ui.js';
-
-const role = document.body.dataset.role;
-const isAdmin = role === 'admin';
-await initPage({ role, page: 'inicio' });
-
-const state = { trabajador: '', periodo: 'mes', data: null };
-
-function paint() {
-  const d = state.data;
-  if (!d) return;
-  const a = d.asistencia;
-  $('#stat-asist').textContent = a.esperadas === null ? String(a.total) : `${a.total}/${a.esperadas}`;
-  $('#stat-asist-sub').textContent = `${a.a_tiempo} a tiempo · ${a.tardanzas} tardanza${a.tardanzas === 1 ? '' : 's'}`;
-  $('#stat-tareas').textContent = String(d.tareas.completadas);
-  $('#stat-tareas-sub').textContent = `de ${d.tareas.total} · ${d.tareas.fuera_de_plazo} fuera de plazo`;
-  $('#stat-efic').textContent = `${d.eficiencia}%`;
-  $('#report-scope').textContent = d.trabajador ? d.trabajador.nombre : isAdmin ? 'Toda la empresa' : 'Mi desempeño';
-
-  const hasData = a.total + d.tareas.total > 0;
-  $('#chart-empty').hidden = hasData;
-  $('#chart').hidden = !hasData;
-  if (hasData) {
-    drawBarChart($('#chart'), [
-      { label: 'A tiempo', value: a.a_tiempo, tone: 'ok' },
-      { label: 'Tardanzas', value: a.tardanzas, tone: 'warn' },
-      { label: 'Asignadas', value: d.tareas.asignadas, tone: 'gold' },
-      { label: 'En progreso', value: d.tareas.en_progreso, tone: 'gold' },
-      { label: 'En revisión', value: d.tareas.en_revision || 0, tone: 'warn' },
-      { label: 'Completadas', value: d.tareas.completadas, tone: 'ok' },
-    ]);
-  }
-}
-
-async function load() {
-  try { state.data = await Reports.summary({ periodo: state.periodo, trabajador: state.trabajador }); paint(); }
-  catch (err) { toast(err.message, 'error'); }
-}
-
-$('#periodo').addEventListener('change', (e) => { state.periodo = e.target.value; load(); });
-window.addEventListener('resize', debounce(paint, 150));
-
-if (isAdmin) {
-  let users = [];
-  try {
-    users = (await Catalog.users()).users;
-    $('#users-list').innerHTML = users.map((u) => `<option value="${esc(u.nombre)}"></option>`).join('');
-  } catch (err) { toast(err.message, 'error'); }
-
-  $('#user-search').addEventListener('input', (e) => {
-    const value = e.target.value.trim().toLowerCase();
-    const match = users.find((u) => u.nombre.toLowerCase() === value);
-    const next = match ? String(match.id) : '';
-    if (!value || match) { if (next !== state.trabajador) { state.trabajador = next; load(); } }
-  });
-}
-
-load();
+import {Catalog,Reports} from '../api.js';import {initPage} from '../layout.js';import {enableMenuKeyboard} from '../page-tools.js';import {drawMetricChart,metricColor} from '../chart.js';import {download,reportSheets,toCSV,toXLSX} from '../report-export.js';import {$,debounce,esc,toast,withBusy} from '../ui.js';
+const admin=document.body.dataset.role==='admin';await initPage({role:admin?'admin':'trabajador',page:'inicio'});enableMenuKeyboard();let data=null,generation=0;
+const params=()=>({periodo:$('#periodo').value,trabajador:$('#report-worker')?.value||'',prioridad:$('#report-priority').value});
+function values(){if(!data)return [];const key=$('#report-metric').value;if(key==='prioridad')return ['Alta','Media','Baja','Sin prioridad'].map(label=>({label,value:data.prioridades.find(p=>p.prioridad===label)?.total||0}));if(key==='estado')return [{label:'Asignadas',value:data.tareas.asignadas},{label:'En progreso',value:data.tareas.en_progreso},{label:'En revisión',value:data.tareas.en_revision},{label:'Completadas',value:data.tareas.completadas}];const p=data.puntualidad;return [{label:'Puntuales',value:p.puntuales},{label:'Fuera tolerancia',value:p.faltas-p.sin_marca},{label:'Sin entrada',value:p.sin_marca}];}
+function paint(){if(!data)return;const p=data.puntualidad;$('#metric-punctual').textContent=p.porcentaje===null?'Sin datos':p.porcentaje+'%';$('#metric-punctual-sub').textContent=`${p.puntuales} puntuales / ${p.evaluados} tramos evaluados`;$('#metric-absences').textContent=p.faltas;$('#metric-absences-sub').textContent=`${p.sin_marca} sin entrada · ${p.faltas-p.sin_marca} fuera de tolerancia`;$('#metric-tasks').textContent=data.tareas.completadas;$('#metric-tasks-sub').textContent=`de ${data.tareas.total} tareas en el periodo`;$('#metric-efficiency').textContent=data.eficiencia+'%';$('#report-scope').textContent=(data.trabajador?.nombre||(admin?'Todos los trabajadores':'Mi desempeño'))+' · '+data.periodo.desde+' — '+data.periodo.hasta;const rows=values();$('#report-values').innerHTML=rows.map((d,i)=>`<tr><td><span class="chart-swatch" style="background:${metricColor(d.label,i)}" aria-hidden="true"></span>${esc(d.label)}</td><td>${d.value}</td></tr>`).join('');drawMetricChart($('#chart'),rows,$('#report-chart').value,$('#report-metric').selectedOptions[0].text);}
+async function load(){const seq=++generation;for(const id of ['download-xlsx','download-png','download-csv'])$('#'+id).disabled=true;$('#report-status').textContent='Cargando…';try{const next=await Reports.summary(params());if(seq!==generation)return;data=next;paint();$('#report-status').textContent='Datos actualizados';for(const id of ['download-xlsx','download-png','download-csv'])$('#'+id).disabled=false;}catch(e){if(seq===generation){data=null;$('#report-status').textContent='No se pudieron cargar los datos: '+e.message;}}}
+for(const id of ['periodo','report-priority','report-worker'])$('#'+id)?.addEventListener('change',load);for(const id of ['report-metric','report-chart'])$('#'+id).onchange=paint;window.addEventListener('resize',debounce(paint,150));document.addEventListener('erp:appearance',()=>requestAnimationFrame(paint));
+if(admin){let seq=0;async function search(){const gen=++seq,q=$('#user-search').value.trim();try{const r=await Catalog.users(q);if(gen!==seq)return;const selected=$('#report-worker').value,label=$('#report-worker').selectedOptions[0]?.textContent;$('#report-worker').innerHTML='<option value="">Todos los trabajadores</option>'+r.users.map(u=>`<option value="${u.id}">${esc(u.nombre)} · ${esc(u.codigo)}</option>`).join('');if(selected&&!r.users.some(u=>String(u.id)===selected))$('#report-worker').insertAdjacentHTML('beforeend',`<option value="${esc(selected)}">${esc(label)} (selección actual)</option>`);$('#report-worker').value=selected;}catch(e){toast(e.message,'error');}}
+ $('#user-search').addEventListener('input',debounce(search,300));await search();}
+$('#download-png').onclick=()=>$('#chart').toBlob(blob=>{if(blob)download(blob,'reporte-grafico.png');},'image/png');
+for(const type of ['xlsx','csv'])$('#download-'+type).onclick=()=>withBusy($('#download-'+type),async()=>{try{const filter=params(),d=await Reports.summary({...filter,detalle:'1'}),s=reportSheets(d);if(type==='xlsx')download(toXLSX(s),'reporte-metricas.xlsx');else{const i=Number($('#export-dataset').value);download(new Blob([toCSV(s[i].rows)],{type:'text/csv;charset=utf-8'}),'reporte-'+s[i].name.toLowerCase()+'.csv');}}catch(e){toast(e.message,'error');}});
+await load();

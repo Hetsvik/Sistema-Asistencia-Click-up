@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script src="/js/theme-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Control de asistencia y actividades corporativas.">
 <meta name="theme-color" content="#080808">
@@ -31,9 +32,9 @@
       <div class="form-field"><label for="login-role">Perfil</label>
         <select id="login-role" name="role"><option value="trabajador">Empleado</option><option value="admin">Administrador</option></select></div>
       <div class="form-field"><label for="login-code">Código de usuario</label>
-        <input id="login-code" name="code" autocomplete="username" placeholder="Tu código de empleado o administrador" required></div>
+        <input id="login-code" name="code" autocomplete="username" placeholder="Tu código de empleado" required></div>
       <div class="form-field"><label for="login-pin">Contraseña o PIN</label>
-        <input id="login-pin" name="pin" type="password" autocomplete="current-password" placeholder="••••••••••••" required></div>
+        <input id="login-pin" name="pin" type="password" autocomplete="current-password" placeholder="••••" required></div>
       <p id="login-message" class="form-message" role="alert" hidden></p>
       <button class="btn btn-full" type="submit">Ingresar</button>
       <p class="auth-note">Acceso exclusivo para personal autorizado.</p>

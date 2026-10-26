@@ -43,7 +43,8 @@ export const Auth = {
 
 export const Attendance = {
   today: () => request('GET', API.attendanceToday),
-  checkIn: () => request('POST', API.checkIn),
+  daily: params => request('GET','/api/attendance/daily',{params}),
+  checkIn: (tramo) => request('POST', API.checkIn,{params:{tramo}}),
   checkOut: () => request('PUT', API.checkOut),
   list: (params) => request('GET', API.attendance, { params }),
 };

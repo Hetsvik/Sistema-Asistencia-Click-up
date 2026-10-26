@@ -47,6 +47,7 @@ export async function initPage({ role, page }) {
   $$('[data-soon]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); toast('Esta sección estará disponible pronto.'); }));
   $('[data-logout]').addEventListener('click', (e) => { e.preventDefault(); logout(); });
   applyPreferences(user);
+  window.addEventListener('storage',e=>{if(e.key===`erp:preferences:${user.empleado_id}`||e.key===null){applyPreferences(user);document.dispatchEvent(new Event('erp:preferences'));}});
   initNotifications(user);
   document.body.classList.remove('is-loading');
   return user;

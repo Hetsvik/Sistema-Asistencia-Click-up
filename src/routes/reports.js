@@ -1,6 +1,8 @@
 import { HttpError, intParam, json } from '../lib/http.js';
 import { monthRange, nowLocal, weekRange, workdaysBetween } from '../lib/dates.js';
 
+import { punctuality,peruNow } from '../lib/attendance-policy.js';
+
 const PERIODOS = ['semana', 'mes', 'todo'];
 
 /**
@@ -13,7 +15,7 @@ export async function summary({ env, user, url, tz }) {
   const periodo = p.get('periodo') ?? 'mes';
   if (!PERIODOS.includes(periodo)) throw new HttpError(400, 'Periodo no válido (semana, mes, todo).');
 
-  const hoy = nowLocal(tz).fecha;
+  const hoy = peruNow().fecha;
   const rango = periodo === 'semana' ? weekRange(hoy) : periodo === 'mes' ? monthRange(hoy) : { desde: '0000-01-01', hasta: '9999-12-31' };
 
   let trabajadorId = null;
@@ -60,11 +62,24 @@ export async function summary({ env, user, url, tz }) {
     esperadas = dias * n;
   }
 
+  const prioridad=p.get('prioridad')||'';
+  if(prioridad&&!['Alta','Media','Baja'].includes(prioridad))throw new HttpError(400,'Prioridad no válida.');
+  const taskWhere=`T.Fecha BETWEEN ? AND ?${trabajadorId?' AND T.ID_Trabajador=?':''}${prioridad?' AND D.Prioridad=?':''}`;
+  const taskBinds=[rango.desde,rango.hasta,...extra,...(prioridad?[prioridad]:[])];
+  const {results:prioridades}=await env.DB.prepare(`SELECT COALESCE(D.Prioridad,'Sin prioridad') prioridad,COUNT(*) total,SUM(T.Estado_Tarea='Completada') completadas FROM Tareas T LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere} GROUP BY COALESCE(D.Prioridad,'Sin prioridad')`).bind(...taskBinds).all();
+  const filtered=await env.DB.prepare(`SELECT COUNT(*) total,COALESCE(SUM(T.Estado_Tarea='Asignada'),0) asignadas,COALESCE(SUM(T.Estado_Tarea='En Progreso'),0) en_progreso,COALESCE(SUM(T.Estado_Tarea='En revisión'),0) en_revision,COALESCE(SUM(T.Estado_Tarea='Completada'),0) completadas,COALESCE(SUM(T.Observaciones LIKE '%FUERA DE PLAZO%'),0) fuera_de_plazo FROM Tareas T LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere}`).bind(...taskBinds).first();
+  const puntualidad=await punctuality(env.DB,{desde:rango.desde,hasta:rango.hasta,workerId:trabajadorId,includeDetails:p.get('detalle')==='1'});
+  let tareas_detalle;
+  if(p.get('detalle')==='1'){
+   if(filtered.total>10000||puntualidad.detalle.length>50000)throw new HttpError(413,'Demasiados datos para una exportación. Selecciona un trabajador y un periodo menor.');
+   tareas_detalle=(await env.DB.prepare(`SELECT T.ID_Tarea tarea_id,T.ID_Trabajador trabajador_id,E.Nombre_Completo nombre,P.Nombre_Proyecto proyecto,T.Descripcion_Tarea descripcion,T.Fecha fecha,T.Fecha_Entrega entrega,T.Estado_Tarea estado,COALESCE(D.Prioridad,'Sin prioridad') prioridad FROM Tareas T JOIN Trabajadores W ON W.ID_Trabajador=T.ID_Trabajador JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado JOIN Proyectos P ON P.ID_Proyecto=T.ID_Proyecto LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere} ORDER BY T.Fecha,T.ID_Tarea`).bind(...taskBinds).all()).results;
+  }
   return json({
-    periodo: { clave: periodo, ...rango },
+    periodo: { clave: periodo, ...rango }, filtros:{prioridad},
     trabajador,
     asistencia: { ...asistencia, esperadas },
-    tareas,
-    eficiencia: tareas.total ? Math.round((tareas.completadas / tareas.total) * 1000) / 10 : 0,
+    tareas:filtered, prioridades, puntualidad:puntualidad.resumen,
+    ...(tareas_detalle?{tareas_detalle,puntualidad_detalle:puntualidad.detalle}:{}),
+    eficiencia:filtered.total?Math.round(filtered.completadas/filtered.total*1000)/10:0,
   });
 }

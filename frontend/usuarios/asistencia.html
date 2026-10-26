@@ -2,14 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script src="/js/theme-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#080808">
 <title>Asistencia · Intranet Arquitectura &amp; Servicios Generales</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="/css/modulos.css">
 </head>
-<body data-role="trabajador" class="is-loading">
+<body class="is-loading module-page" data-role="trabajador">
 <noscript><p style="padding:2rem;color:#f3d98b">Esta aplicación necesita JavaScript habilitado.</p></noscript>
 <div class="app">
   <main class="main">
@@ -26,21 +28,11 @@
         <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
       </div>
     </header>
-    <section class="attendance-top">
-      <div class="clock"><span>Hora actual</span><b id="clock-time">--:--</b><span id="clock-date">&nbsp;</span></div>
-      <div class="btn-row">
-        <button class="btn lg" id="btn-in" type="button" disabled><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l-5-5 5-5M5 12h12"/></svg>Marcar Entrada</button>
-        <button class="btn lg outline" id="btn-out" type="button" disabled><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>Marcar Salida</button>
-      </div>
-    </section>
-    <p class="attendance-status" id="att-status" aria-live="polite">Cargando…</p>
-    <section class="card">
-      <h2>Mi historial</h2>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Fecha</th><th>Hora Ingreso</th><th>Hora Salida</th><th>Estado</th></tr></thead>
-        <tbody id="att-body"><tr><td colspan="4" class="empty">Cargando…</td></tr></tbody>
-      </table></div>
-    </section>
+<section class="attendance-top"><div class="clock"><span>Hora de Perú</span><b id="clock-time">--:--</b><span id="clock-date"></span></div><div class="btn-row"><button class="btn" type="button" id="btn-in" disabled>Marcar entrada</button><button class="btn outline" type="button" id="btn-out" disabled>Marcar salida</button></div></section><p id="att-status" class="attendance-status" role="status"></p><div id="my-plan" class="my-plan"></div><section class="card" id="history-panel" aria-labelledby="history-heading" >
+<h2 id="history-heading">Mi historial de asistencia</h2>
+<div class="metrics-toolbar"><label>Desde<input class="input plain" id="att-from" type="date"></label><label>Hasta<input class="input plain" id="att-to" type="date"></label></div>
+<div class="table-wrap"><table><thead><tr><th>Fecha / tramo</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead><tbody id="att-body"></tbody></table></div>
+<div class="metrics-pagination"><button class="btn outline" id="history-prev" type="button">Anterior</button><span id="history-page" role="status"></span><button class="btn outline" id="history-next" type="button">Siguiente</button></div></section>
   </main>
 </div>
 <script type="module" src="/js/pages/asistencia.js"></script>

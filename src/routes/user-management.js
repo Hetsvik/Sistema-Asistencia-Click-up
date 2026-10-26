@@ -1,6 +1,8 @@
 import { HttpError, intParam, json, readJson, text } from '../lib/http.js';
 import { hashPin } from '../lib/security.js';
 import { ACCOUNT_TYPES } from '../lib/accounts.js';
+import { validateSchedule, readSchedule, scheduleStatement } from '../lib/work-schedule.js';
+import { nowLocal } from '../lib/dates.js';
 
 const ALL = `SELECT E.ID_Empleado AS id, E.Nombre_Completo AS nombre, E.Correo AS correo, E.Telefono AS telefono,
  E.Estado AS estado, 'admin' AS rol, A.Codigo_Administrador AS codigo, A.PIN_Acceso AS pin
@@ -69,26 +71,33 @@ export async function list({ env, url }) {
 }
 export async function detail({ env, params }) {
   const { pin, ...user } = await getAccount(env.DB,idOf(params));
-  return json({ user });
+  return json({ user: { ...user, horario: await readSchedule(env.DB,user.id), zona_horaria: 'America/Lima' } });
 }
 export async function create({ env, request }) {
-  const f = await fields(env.DB,await readJson(request),0,{creating:true});
+  const body=await readJson(request);
+  const horario=Object.hasOwn(body,'horario')?validateSchedule(body.horario):null;
+  const f = await fields(env.DB,body,0,{creating:true});
   const a = ACCOUNT_TYPES[f.rol];
   const codigo = (f.rol === 'admin' ? 'AD' : 'EM') + crypto.randomUUID().replaceAll('-','').slice(0,12).toUpperCase();
   const pin = await hashPin(f.pin);
   const insertAccount = f.rol === 'admin'
     ? 'INSERT INTO Administrador(ID_Empleado,Codigo_Administrador,PIN_Acceso,ID_Rol) VALUES(last_insert_rowid(),?,?,2)'
     : "INSERT INTO Trabajadores(ID_Empleado,Codigo_Trabajador,PIN_Acceso,ID_Rol,Rol_Cargo) VALUES(last_insert_rowid(),?,?,1,'Trabajador')";
-  const r = await batch(env.DB,[
+  const stmts=[
     env.DB.prepare("INSERT INTO Empleados(Nombre_Completo,Correo,Telefono,Estado) VALUES(?,?,?,'Activo')").bind(f.nombre,f.correo,f.telefono),
     env.DB.prepare(insertAccount).bind(codigo,pin),
     env.DB.prepare(`INSERT INTO Cuentas_Usuario(ID_Empleado,Rol) SELECT ID_Empleado,? FROM ${a.table} WHERE ${a.code}=?`).bind(f.rol,codigo),
-  ]);
-  return json({ user: { id:r[0].meta.last_row_id, nombre:f.nombre, correo:f.correo, telefono:f.telefono, rol:f.rol, estado:'Activo', codigo } },201);
+  ];
+  if(horario!==null)stmts.push(env.DB.prepare(`INSERT INTO Horarios_Laborales(ID_Empleado,Horario_JSON,Actualizado_En)
+    SELECT ID_Empleado,?,? FROM ${a.table} WHERE ${a.code}=?`).bind(JSON.stringify(horario),nowLocal('America/Lima').fechaHora,codigo));
+  const r=await batch(env.DB,stmts);
+  return json({ user: { horario, zona_horaria:'America/Lima', id:r[0].meta.last_row_id, nombre:f.nombre, correo:f.correo, telefono:f.telefono, rol:f.rol, estado:'Activo', codigo } },201);
 }
 export async function update({ env, params, request, user }) {
   const id=idOf(params), current=await getAccount(env.DB,id);
-  const f=await fields(env.DB,await readJson(request),id);
+  const body=await readJson(request);
+  const horario=Object.hasOwn(body,'horario')?validateSchedule(body.horario):undefined;
+  const f=await fields(env.DB,body,id);
   if (id===user.empleado_id && f.rol!==current.rol) throw new HttpError(409,'No puedes cambiar tu propio rol.');
   const pin=f.pin ? await hashPin(f.pin) : current.pin;
   const invalidate=Boolean(f.pin) || f.rol!==current.rol;
@@ -108,9 +117,10 @@ export async function update({ env, params, request, user }) {
   for (const a of Object.values(ACCOUNT_TYPES)) {
     stmts.push(env.DB.prepare(`UPDATE ${a.table} SET ${a.code}=?,PIN_Acceso=? WHERE ID_Empleado=?`).bind(current.codigo,pin,id));
   }
+  if(horario!==undefined)stmts.push(scheduleStatement(env.DB,id,horario,nowLocal('America/Lima').fechaHora));
   await batch(env.DB,stmts);
   const { pin:secret,...safe }=await getAccount(env.DB,id);
-  return json({ user:safe, reauthenticate:id===user.empleado_id && invalidate });
+  return json({ user:{...safe,horario:await readSchedule(env.DB,id),zona_horaria:'America/Lima'}, reauthenticate:id===user.empleado_id && invalidate });
 }
 export async function setStatus({ env,params,request,user }) {
   const id=idOf(params),current=await getAccount(env.DB,id);

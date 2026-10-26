@@ -1,3 +1,4 @@
+import { initWorkSchedule } from '../work-schedule.js';
 import { ManagedUsers } from '../api.js';
 import { initPage } from '../layout.js';
 import { ROUTES } from '../config.js';
@@ -8,6 +9,7 @@ async function main(){
   const current=await initPage({role:'admin',page:'usuarios'});
   enableMenuKeyboard();
   const form=$('#user-form'),editing=form.dataset.mode==='edit';
+  const schedule=initWorkSchedule($('#work-schedule'));
   const rawId=new URLSearchParams(location.search).get('id');
   const id=rawId && /^\d+$/.test(rawId)?Number(rawId):0;
   if(editing){
@@ -15,6 +17,7 @@ async function main(){
     try{
       const {user}=await ManagedUsers.get(id);
       $('#user-name').value=user.nombre;$('#user-email').value=user.correo||'';$('#user-phone').value=user.telefono||'';$('#user-role').value=user.rol;
+      schedule.set(user.horario??null);
       $('#user-code').textContent=`Código de acceso: ${user.codigo}`;$('#user-code').hidden=false;
       $('#user-fields').disabled=false;$('#user-submit').disabled=false;
       if(user.id===current.empleado_id){$('#user-role').disabled=true;$('#user-role').title='No puedes cambiar tu propio rol';}
@@ -22,7 +25,8 @@ async function main(){
   }
   form.addEventListener('submit',async e=>{
     e.preventDefault();if($('#user-submit').disabled)return;message(null);
-    const body={nombre:$('#user-name').value.trim(),correo:$('#user-email').value.trim(),pin:$('#user-password').value,rol:$('#user-role').value,telefono:$('#user-phone').value.trim()};
+    let horario;try{horario=schedule.get();}catch(err){message(err);return;}
+    const body={horario,nombre:$('#user-name').value.trim(),correo:$('#user-email').value.trim(),pin:$('#user-password').value,rol:$('#user-role').value,telefono:$('#user-phone').value.trim()};
     await withBusy($('#user-submit'),async()=>{
       try{
         const result=editing?await ManagedUsers.update(id,body):await ManagedUsers.create(body);

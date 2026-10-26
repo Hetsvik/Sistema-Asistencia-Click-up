@@ -21,6 +21,12 @@ migrations_dir = "database/migrations"
 [observability]
 enabled = true
 
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "erp-adjuntos"
+
+[triggers]
+crons = ["17 * * * *"]
 # Secretos (NO van aquí):
 #   producción -> npx wrangler secret put SESSION_SECRET
 #   local      -> archivo .dev.vars (ver .dev.vars.example)

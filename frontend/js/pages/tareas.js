@@ -1,3 +1,4 @@
+import {renderFiles,fileAction} from '../file-viewer.js';
 import { initAttachments } from '../attachments.js';
 import { Catalog, Tasks } from '../api.js';
 import { initDateTimePicker } from '../date-time-picker.js';
@@ -83,11 +84,12 @@ async function openDetail(id) {
   try { task = (await Tasks.get(id)).task; } catch (err) { return toast(err.message, 'error'); }
 
   const allowed = {Asignada:['En Progreso'],'En Progreso':['En revisión'],'En revisión':['Completada','En Progreso'],Completada:['En Progreso']};
-  let timer,attachments;
+  let timer,attachments,closed=false,painting=false,sending=false;const fileMap=new Map();
+  const leaveGuard=e=>{if(sending){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',leaveGuard);
   const modal = openModal({
     title: `Tarea · ${task.proyecto}`,
     wide: true,
-    onClose: () => {clearInterval(timer);attachments?.destroy();},
+    onClose: () => {window.removeEventListener('beforeunload',leaveGuard);closed=true;clearInterval(timer);attachments?.destroy();},
     html: `
       <dl class="detail">
         <div><dt>Descripción</dt><dd>${esc(task.descripcion)}</dd></div>
@@ -106,35 +108,48 @@ async function openDetail(id) {
       <h3 class="sub">Conversación</h3>
       <div class="chat" id="chat" aria-live="polite"></div>
       <form class="chat-form" id="chat-form">
-        <input class="input plain" id="chat-input" maxlength="1000" placeholder="Escribe un mensaje…" autocomplete="off" required>
+        <input class="input plain" id="chat-input" maxlength="1000" placeholder="Escribe un mensaje…" autocomplete="off">
         <button class="btn sm" type="submit" aria-label="Enviar">${icon('send')}</button>
       </form>`,
   });
 
-  attachments=initAttachments(modal.el);
+  const chatInput=$('#chat-input',modal.el),sendButton=$('#chat-form [type=submit]',modal.el);
+  const updateSend=()=>{sendButton.disabled=sending||(!chatInput.value.trim()&&!attachments?.count);};
+  modal.el.addEventListener('cancel',e=>{if(sending){e.preventDefault();toast('Espera la confirmación del envío antes de cerrar.');}});
+  modal.el.addEventListener('click',e=>{if(sending&&(e.target===modal.el||e.target.closest('[data-close]'))){e.preventDefault();e.stopImmediatePropagation();toast('Espera la confirmación del envío antes de cerrar.');}},true);
+  attachments=initAttachments(modal.el,{onChange:updateSend});chatInput.addEventListener('input',updateSend);updateSend();
   const chat = $('#chat', modal.el);
   const paintChat = async () => {
+    if(closed||painting||document.hidden)return;painting=true;
     try {
       const { comments } = await Tasks.comments(id);
+      if(closed)return;fileMap.clear();for(const c of comments)for(const f of c.attachments||[])fileMap.set(f.id,f);
       const stick = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
       chat.innerHTML = comments.length ? comments.map((c) => `
         <div class="msg ${c.autor === user.nombre ? 'mine' : ''}">
-          <b>${esc(c.autor)} <i>${esc(c.rol)}</i></b><p>${esc(c.mensaje)}</p><time>${fmtDateTime(c.fecha)}</time>
+          <b>${esc(c.autor)} <i>${esc(c.rol)}</i></b><p>${esc(c.mensaje)}</p>${renderFiles(c.attachments)}<time>${fmtDateTime(c.fecha)}</time>
         </div>`).join('') : '<p class="muted center">Aún no hay mensajes.</p>';
       if (stick) chat.scrollTop = chat.scrollHeight;
-    } catch { /* se reintenta en el siguiente ciclo */ }
+    } catch { /* se reintenta en el siguiente ciclo */ } finally {painting=false;}
   };
   timer = setInterval(paintChat, POLL_COMMENTS_MS);
   await paintChat();
   chat.scrollTop = chat.scrollHeight;
 
+  chat.addEventListener('click',async e=>{
+    const b=e.target.closest('[data-file]');if(!b)return;const f=fileMap.get(b.dataset.file);if(!f)return;
+    await withBusy(b,()=>fileAction(id,f,b.dataset.action));
+  });
   $('#chat-form', modal.el).addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const input = $('#chat-input', modal.el);
-    const text = input.value.trim();
-    if (!text) return;
-    try { await Tasks.addComment(id, text); input.value = ''; await paintChat(); chat.scrollTop = chat.scrollHeight; }
-    catch (err) { toast(err.message, 'error'); }
+    e.preventDefault();if(sending||closed)return;
+    const text=chatInput.value.trim();if(!text&&!attachments.count)return;
+    const hasFiles=attachments.count>0,body=hasFiles?attachments.formData(text):null;
+    sending=true;attachments.setBusy(true);chatInput.disabled=true;sendButton.setAttribute('aria-label',hasFiles?'Subiendo archivos':'Enviando mensaje');sendButton.innerHTML='<svg class="file-spinner" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="40 20"/></svg>';e.currentTarget.setAttribute('aria-busy','true');updateSend();
+    try {
+      if(hasFiles)await Tasks.sendAttachments(id,body);else await Tasks.addComment(id,text);
+      if(!closed){chatInput.value='';attachments.clear();await paintChat();chat.scrollTop=chat.scrollHeight;toast(hasFiles?'Archivos enviados.':'Mensaje enviado.','success');}
+    }catch(err){if(!closed)toast(err.message,'error');}
+    finally{sending=false;if(!closed){attachments.setBusy(false);chatInput.disabled=false;sendButton.innerHTML=icon('send');sendButton.setAttribute('aria-label','Enviar');$('#chat-form',modal.el).setAttribute('aria-busy','false');updateSend();}}
   });
 
   $('#d-save', modal.el)?.addEventListener('click', (e) => withBusy(e.currentTarget, async () => {

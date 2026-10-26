@@ -1,4 +1,4 @@
-import { Account } from '../api.js';
+import { Account,Storage } from '../api.js';
 import { initPage } from '../layout.js';
 import { enableMenuKeyboard } from '../page-tools.js';
 import { readPreferences,savePreferences } from '../preferences.js';
@@ -24,3 +24,5 @@ for(const link of document.querySelectorAll('.settings-nav a'))link.addEventList
 document.querySelector('.settings-nav a').setAttribute('aria-current','location');await load();
 
 document.addEventListener('erp:preferences',()=>{const p=readPreferences(user);$('#pref-theme').value=p.theme;$('#pref-text').value=p.text;$('#pref-assignments').checked=p.assignments;$('#pref-status').checked=p.status;});
+
+Storage.status().then(s=>{document.querySelector('#storage-badge').textContent=s.configured?'Binding R2 configurado':'Sin configurar';document.querySelector('#storage-status').textContent=s.configured?'Bucket privado. Máximo 5 archivos, 10 MiB cada uno y 25 MiB por envío. El primer envío confirmará el acceso real al bucket.':'El servidor aún no tiene el binding ATTACHMENTS. Contacta al administrador.';}).catch(e=>{document.querySelector('#storage-badge').textContent='No disponible';document.querySelector('#storage-status').textContent=e.message;});

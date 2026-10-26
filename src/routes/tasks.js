@@ -1,3 +1,4 @@
+import {commentFiles} from './attachments.js';
 import { HttpError, intParam, json, readJson, text } from '../lib/http.js';
 import { nowLocal, normalizeDateTime, priorityFor, toMs } from '../lib/dates.js';
 
@@ -148,7 +149,8 @@ export async function comments({ env, user, params }) {
   const { results } = await env.DB.prepare(
     'SELECT ID_Comentario AS id, Autor AS autor, Rol AS rol, Mensaje AS mensaje, Fecha AS fecha FROM Comentarios_Tarea WHERE ID_Tarea = ? ORDER BY Fecha ASC, ID_Comentario ASC',
   ).bind(id).all();
-  return json({ comments: results });
+  const files=await commentFiles(env.DB,id);
+  return json({comments:results.map(c=>({...c,attachments:files.filter(f=>f.comment_id===c.id)}))});
 }
 
 export async function addComment({ request, env, user, params }) {

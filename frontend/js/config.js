@@ -63,5 +63,5 @@ export const NAV = [
 
 export const ESTADOS = ['Asignada', 'En Progreso', 'En revisión', 'Completada'];
 export const ROL_LABEL = { admin: 'Administrador', trabajador: 'Usuario' };
-export const POLL_COMMENTS_MS = 8000;
+export const POLL_COMMENTS_MS = 3000;
 export const POLL_NOTIFICATIONS_MS = 3000;

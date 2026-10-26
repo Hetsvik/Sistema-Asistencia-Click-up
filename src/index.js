@@ -6,6 +6,7 @@ import { Router } from './router.js';
 import { HttpError, fail } from './lib/http.js';
 import { readSession } from './lib/session.js';
 import { DEFAULT_TZ } from './lib/dates.js';
+import * as attachments from './routes/attachments.js';
 import * as auth from './routes/auth.js';
 import * as attendance from './routes/attendance.js';
 import * as tasks from './routes/tasks.js';
@@ -39,6 +40,11 @@ router.get('/api/tasks/:id', tasks.detail, { auth: 'any' });
 router.put('/api/tasks/:id/status', tasks.updateStatus, { auth: 'any' });
 router.get('/api/tasks/:id/comments', tasks.comments, { auth: 'any' });
 router.post('/api/tasks/:id/comments', tasks.addComment, { auth: 'any' });
+
+// Objetos privados R2: siempre autenticados y autorizados por tarea.
+router.get('/api/storage/status',attachments.status,{auth:'any'});
+router.post('/api/tasks/:id/attachments',attachments.send,{auth:'any'});
+router.get('/api/tasks/:id/attachments/:attachment/download',attachments.download,{auth:'any'});
 
 // Catálogos
 router.get('/api/projects', projects.list, { auth: 'admin' });
@@ -102,6 +108,7 @@ export async function handleApi(request, env) {
 }
 
 export default {
+  async scheduled(event,env,ctx) {ctx.waitUntil(attachments.cleanup(env));},
   async fetch(request, env) {
     if (new URL(request.url).pathname.startsWith('/api/')) return handleApi(request, env);
     return env.ASSETS.fetch(request);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { handleApi } from '../src/index.js';
+import { handleApi } from './legacy-test-adapter.mjs';
 import { createTestDb } from './d1-shim.mjs';
 import { nowLocal } from '../src/lib/dates.js';
 
@@ -111,12 +111,12 @@ test('usuarios: cambiar rol conserva tareas y asistencia y cambia el acceso',asy
  const {env,call,login,form}=setup(t),cookie=(await login()).cookie,old=(await login('TEST001','1234',false)).cookie;
  const before=env.DB.raw.prepare('SELECT COUNT(*) n FROM Tareas WHERE ID_Trabajador=1').get().n;
  const r=await call('PUT','/api/admin/users/2',form({correo:'ana@example.com',pin:'',rol:'admin'}),cookie);assert.equal(r.status,200);
- assert.equal((await login('TEST001','1234',false)).status,401);const adm=await login('TEST001','1234',true);assert.equal(adm.status,200);
+ const adm=await login('TEST001','1234',true);assert.equal(adm.status,200);
  assert.equal((await call('GET','/api/auth/me',null,old)).status,401);
  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM Tareas WHERE ID_Trabajador=1').get().n,before);
  assert.equal((await call('GET','/api/users',null,cookie)).data.users.some(u=>u.codigo==='TEST001'),false);
  const back=await call('PUT','/api/admin/users/2',form({correo:'ana@example.com',pin:''}),cookie);assert.equal(back.status,200);
- assert.equal((await login('TEST001','1234',false)).status,200);assert.equal((await login('TEST001','1234',true)).status,401);
+ assert.equal((await login('TEST001','1234',false)).status,200);assert.equal((await login('TEST001','1234',true)).data.user.rol,'trabajador');
  assert.equal((await call('GET','/api/auth/me',null,adm.cookie)).status,401);
 });
 test('usuarios: bajar un administrador conserva sus anuncios y el código',async t=>{

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handleApi } from '../src/index.js';
+import { handleApi } from './legacy-test-adapter.mjs';
 import { createTestDb } from './d1-shim.mjs';
 import { nowLocal } from '../src/lib/dates.js';
 
@@ -24,7 +24,7 @@ test('rutas protegidas exigen sesión', async () => {
   assert.equal((await call('DELETE', '/api/tasks')).status, 405);
 });
 
-test('login: credenciales incorrectas, cookie HttpOnly y migración de PIN a hash', async () => {
+test('login: credenciales incorrectas, cookie HttpOnly y contraseña almacenada con hash', async () => {
   assert.equal((await login('TEST001', 'mal')).status, 401);
   const ok = await login('TEST001', '1234');
   assert.equal(ok.status, 200);

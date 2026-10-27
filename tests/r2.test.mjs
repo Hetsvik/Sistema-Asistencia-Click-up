@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-import {createTestDb} from './d1-shim.mjs';import {handleApi} from '../src/index.js';import {cleanup,discard} from '../src/routes/attachments.js';import {safeName,detectType,disposition,LIMITS} from '../src/lib/attachment-files.js';import {zipStored} from '../frontend/js/report-export.js';
+import {createTestDb} from './d1-shim.mjs';import {handleApi} from './legacy-test-adapter.mjs';import {cleanup,discard} from '../src/routes/attachments.js';import {safeName,detectType,disposition,LIMITS} from '../src/lib/attachment-files.js';import {zipStored} from '../frontend/js/report-export.js';
 class FakeR2{
  objects=new Map();puts=0;failPut=false;failDelete=false;pause=null;
  async put(k,value){this.puts++;if(this.pause)await this.pause;if(this.failPut)throw Error('Fallo R2 simulado');this.objects.set(k,new Uint8Array(value));return {key:k};}

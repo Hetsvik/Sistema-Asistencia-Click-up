@@ -1,6 +1,6 @@
 -- Datos FICTICIOS usados solo por las pruebas automáticas (tests/). No se importan a ninguna BD real.
 --   Administrador: TESTADM / admin1234  ·  Trabajadores: TEST001, TEST002, TEST003 / 1234
--- Los PIN están en texto plano a propósito para probar la migración a hash en el primer login.
+-- Credenciales ficticias con hash. Identidad corporativa explícita para pruebas.
 
 INSERT OR IGNORE INTO Empleados (ID_Empleado, Nombre_Completo, Correo, Estado) VALUES
   (1, 'Administrador General', NULL, 'Activo'),
@@ -9,12 +9,12 @@ INSERT OR IGNORE INTO Empleados (ID_Empleado, Nombre_Completo, Correo, Estado) V
   (4, 'Carla Mendoza','carla@example.com', 'Activo');
 
 INSERT OR IGNORE INTO Administrador (ID_Administrador, ID_Empleado, Codigo_Administrador, PIN_Acceso, ID_Rol) VALUES
-  (1, 1, 'TESTADM', 'admin1234', 2);
+  (1, 1, 'TESTADM', 'pbkdf2$100000$AwMDAwMDAwMDAwMDAwMDAw==$nrfrT5dMT4QI20+v4xSwmUvUmPG/qutxE8VnTPHXoBs=', 2);
 
 INSERT OR IGNORE INTO Trabajadores (ID_Trabajador, ID_Empleado, Rol_Cargo, Codigo_Trabajador, PIN_Acceso, ID_Rol) VALUES
-  (1, 2, 'Arquitecta',  'TEST001', '1234', 1),
-  (2, 3, 'Ingeniero',   'TEST002', '1234', 1),
-  (3, 4, 'Abogada',     'TEST003', '1234', 1);
+  (1, 2, 'Arquitecta',  'TEST001', 'pbkdf2$100000$AwMDAwMDAwMDAwMDAwMDAw==$GkTu6FLrsRtwi7gqku5OJqEuTQUU2vNDIAHeQrWbDao=', 1),
+  (2, 3, 'Ingeniero',   'TEST002', 'pbkdf2$100000$AwMDAwMDAwMDAwMDAwMDAw==$GkTu6FLrsRtwi7gqku5OJqEuTQUU2vNDIAHeQrWbDao=', 1),
+  (3, 4, 'Abogada',     'TEST003', 'pbkdf2$100000$AwMDAwMDAwMDAwMDAwMDAw==$GkTu6FLrsRtwi7gqku5OJqEuTQUU2vNDIAHeQrWbDao=', 1);
 
 INSERT OR IGNORE INTO Proyectos (ID_Proyecto, Nombre_Proyecto, Area_Departamento) VALUES
   (1, 'Proyecto Casuarina', 'Arquitectura'),
@@ -36,3 +36,5 @@ INSERT OR IGNORE INTO Asistencia (ID_Trabajador, Fecha_Entrada, Fecha_Salida) VA
 INSERT OR IGNORE INTO Comentarios_Tarea (ID_Tarea, Autor, Rol, Mensaje) VALUES
   (2, 'Ana Torres', 'Empleado', 'Aceptada, la entrego en dos días.'),
   (2, 'Administrador General', 'Administrador', 'Perfecto, avísame cualquier bloqueo.');
+
+INSERT OR IGNORE INTO Identidad_Usuario(ID_Empleado,Nombres,Apellido_Paterno,Correo_Personal,Correo_Corporativo) VALUES (1,'Administrador','General',NULL,'admin.administrador@arqyservgen.com'),(2,'Ana','Torres','ana@example.com','user.ana@arqyservgen.com'),(3,'Luis','Ramos','luis@example.com','user.luis@arqyservgen.com'),(4,'Carla','Mendoza','carla@example.com','user.carla@arqyservgen.com');

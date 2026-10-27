@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Prueba rápida de un despliegue (local o en Cloudflare):
 //   node scripts/smoke.mjs https://erp-construcciones-sac.<tu-subdominio>.workers.dev
-// Opcional (para probar el login real):  SMOKE_CODE=AD001 SMOKE_PIN=xxxx SMOKE_ADMIN=1 node scripts/smoke.mjs <url>
+// Opcional (para probar el login real):  SMOKE_EMAIL=user.nombre@arqyservgen.com SMOKE_PIN=xxxx node scripts/smoke.mjs <url>
 
 const base = (process.argv[2] ?? 'http://localhost:8787').replace(/\/$/, '');
 let failed = 0;
@@ -19,11 +19,11 @@ r = await get('/api/tasks');
 check('GET /api/tasks sin sesión → 401', r.status === 401, String(r.status));
 r = await get('/api/nope');
 check('GET /api/nope → 404', r.status === 404, String(r.status));
-r = await get('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: 'NOEXISTE', pin: 'x', es_admin: false }) });
+r = await get('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ correo: 'user.inexistente@arqyservgen.com', pin: 'x' }) });
 check('login con datos falsos → 401 (si da 500, falta SESSION_SECRET o migrar la BD)', r.status === 401, String(r.status));
 
-if (process.env.SMOKE_CODE && process.env.SMOKE_PIN) {
-  r = await get('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: process.env.SMOKE_CODE, pin: process.env.SMOKE_PIN, es_admin: !!process.env.SMOKE_ADMIN }) });
+if (process.env.SMOKE_EMAIL && process.env.SMOKE_PIN) {
+  r = await get('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ correo: process.env.SMOKE_EMAIL, pin: process.env.SMOKE_PIN }) });
   const cookie = r.headers.get('set-cookie') ?? '';
   check('login real → 200', r.status === 200, String(r.status));
   check('cookie HttpOnly + SameSite', /HttpOnly/i.test(cookie) && /SameSite=Lax/i.test(cookie));
@@ -33,6 +33,9 @@ if (process.env.SMOKE_CODE && process.env.SMOKE_PIN) {
     const x = await get(path, { headers: { Cookie: session } });
     check(`GET ${path} con sesión → 200`, x.status === 200, String(x.status));
   }
+  await get('/api/auth/logout',{method:'POST',headers:{Cookie:session}});
+  const replay=await get('/api/auth/me',{headers:{Cookie:session}});
+  check('cookie revocada tras logout → 401',replay.status===401,String(replay.status));
 }
 console.log(failed ? `\n${failed} prueba(s) fallaron.` : '\nTodo en orden.');
 process.exit(failed ? 1 : 0);

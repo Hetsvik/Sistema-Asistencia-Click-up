@@ -22,11 +22,17 @@ export function json(data, status = 200, headers = {}) {
 export const fail = (status, detail, headers = {}) => json({ detail }, status, headers);
 
 export async function readJson(request) {
+  const max=32*1024;
+  if(Number(request.headers.get('Content-Length')||0)>max)throw new HttpError(413,'JSON demasiado grande (máximo 32 KiB).');
   try {
-    const body = await request.json();
+    const reader=request.body?.getReader();let total=0;const chunks=[];
+    if(reader)try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>max)throw new HttpError(413,'JSON demasiado grande (máximo 32 KiB).');chunks.push(value);}}finally{reader.releaseLock();}
+    const bytes=new Uint8Array(total);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}
+    const body = JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
     if (body === null || typeof body !== 'object' || Array.isArray(body)) throw new Error();
     return body;
-  } catch {
+  } catch (err) {
+    if(err instanceof HttpError)throw err;
     throw new HttpError(400, 'El cuerpo de la petición debe ser un JSON válido.');
   }
 }

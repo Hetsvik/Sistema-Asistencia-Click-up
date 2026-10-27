@@ -36,7 +36,7 @@ async function request(method, url, { body, params, silent401 = false } = {}) {
 }
 
 export const Auth = {
-  login: (codigo, pin, esAdmin) => request('POST', API.login, { body: { codigo, pin, es_admin: esAdmin }, silent401: true }),
+  login: (correo, pin) => request('POST', API.login, { body: { correo, pin }, silent401: true }),
   logout: () => request('POST', API.logout, { silent401: true }),
   me: (opts) => request('GET', API.me, opts),
 };
@@ -57,7 +57,7 @@ export const Tasks = {
   get: (id) => request('GET', API.task(id)),
   create: (body) => request('POST', API.tasks, { body }),
   setStatus: (id, estado, observaciones, expected_estado) => request('PUT', API.taskStatus(id), { body: { estado, observaciones, expected_estado } }),
-  comments: (id) => request('GET', API.taskComments(id)),
+  comments: (id,params) => request('GET', API.taskComments(id),{params}),
   addComment: (id, mensaje) => request('POST', API.taskComments(id), { body: { mensaje } }),
 };
 
@@ -76,6 +76,7 @@ export const Announcements = {
   create: (body) => request('POST', API.announcements, { body }),
 };
 export const ManagedUsers = {
+  previewEmail: body=>request('POST','/api/admin/users/preview-email',{body}),
   list: (params) => request('GET', API.managedUsers, { params }),
   get: (id) => request('GET', API.managedUser(id)),
   create: (body) => request('POST', API.managedUsers, { body }),

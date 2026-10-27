@@ -1,5 +1,5 @@
 // Hash de PIN (PBKDF2-SHA256) y comparación en tiempo constante.
-// Los PIN antiguos (texto plano) se siguen aceptando una vez y se re-hashean en el login.
+// No se aceptan credenciales heredadas en texto plano.
 
 const ITERATIONS = 100_000; // máximo permitido por Workers para PBKDF2
 const enc = new TextEncoder();
@@ -31,8 +31,11 @@ export async function verifyPin(pin, stored) {
   stored = String(stored ?? '');
   if (stored.startsWith('pbkdf2$')) {
     const [, iterations, salt, hash] = stored.split('$');
-    const candidate = await pbkdf2(pin, fromB64(salt), Number(iterations));
-    return timingSafeEqual(candidate, fromB64(hash));
+    try {
+      if(Number(iterations)!==ITERATIONS||fromB64(salt).length!==16||fromB64(hash).length!==32)return false;
+      const candidate = await pbkdf2(pin, fromB64(salt), Number(iterations));
+      return timingSafeEqual(candidate, fromB64(hash));
+    }catch{return false;}
   }
-  return timingSafeEqual(enc.encode(pin), enc.encode(stored)); // PIN heredado en texto plano
+  return false; // Nunca aceptar texto plano ni credenciales deshabilitadas.
 }

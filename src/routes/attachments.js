@@ -1,3 +1,4 @@
+import { limit } from '../lib/rate-limit.js';
 import {HttpError,intParam,json,text} from '../lib/http.js';
 import {LIMITS,safeName,detectType,previewKind,disposition,limitedForm} from '../lib/attachment-files.js';
 export const configured=env=>Boolean(env.ATTACHMENTS?.put&&env.ATTACHMENTS?.get&&env.ATTACHMENTS?.delete);
@@ -27,6 +28,7 @@ export async function cleanup(env){
  for(const row of results)await discard(env,row);
 }
 export async function send({request,env,user,params}){
+ await limit(env.DB,'uploads',String(user.empleado_id),10,60);
  const id=intParam(params.id,{min:1});await authorizeTask(env.DB,id,user);const r2=bucket(env);
  const form=await limitedForm(request);
  if([...form.keys()].some(k=>!['files','mensaje','client_id'].includes(k))||form.getAll('mensaje').length>1||form.getAll('client_id').length!==1)throw new HttpError(400,'Campos de envío inválidos.');
@@ -94,6 +96,7 @@ export async function download({env,user,params,url}){
  const object=await r2.get(f.Clave_Objeto);if(!object)throw new HttpError(404,'El objeto no está disponible. Contacta al administrador.');
  return new Response(object.body,{headers:{'Content-Type':preview&&previewKind(f.MIME)==='text'?'text/plain; charset=utf-8':f.MIME,'Content-Length':String(f.Bytes),'Content-Disposition':disposition(f.Nombre,preview),'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"sandbox; default-src 'none'; frame-ancestors 'self'",'Referrer-Policy':'no-referrer'}});
 }
-export async function commentFiles(db,id){
- return (await db.prepare("SELECT A.ID id,A.ID_Comentario comment_id,A.Nombre nombre,A.MIME mime,A.Bytes bytes FROM Adjuntos_R2 A JOIN Envios_R2 E ON E.ID=A.ID_Envio WHERE E.ID_Tarea=? AND E.Estado='listo' ORDER BY A.Creado_UTC,A.ID").bind(id).all()).results.map(f=>({...f,preview:previewKind(f.mime)}));
+export async function commentFiles(db,id,commentIds=null){
+ if(commentIds?.length===0)return [];
+ return (await db.prepare("SELECT A.ID id,A.ID_Comentario comment_id,A.Nombre nombre,A.MIME mime,A.Bytes bytes FROM Adjuntos_R2 A JOIN Envios_R2 E ON E.ID=A.ID_Envio WHERE E.ID_Tarea=? AND E.Estado='listo' "+(commentIds?"AND A.ID_Comentario IN ("+commentIds.map(()=>"?").join(",")+")":"")+" ORDER BY A.Creado_UTC,A.ID").bind(id,...(commentIds||[])).all()).results.map(f=>({...f,preview:previewKind(f.mime)}));
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { handleApi } from '../src/index.js';
+import { handleApi } from './legacy-test-adapter.mjs';
 import { createTestDb } from './d1-shim.mjs';
 import { groupTaskEvents, notificationKey, visibleNotifications } from '../frontend/js/task-events.js';
 function setup(t) {

@@ -1,4 +1,4 @@
-// Sesión stateless: cookie HttpOnly con payload firmado (HMAC-SHA256).
+// Cookie firmada y sesión individual revocable en D1. Sin compatibilidad con cookies antiguas.
 
 import { HttpError } from './http.js';
 import { toB64, fromB64, timingSafeEqual } from './security.js';
@@ -11,7 +11,7 @@ const b64u = (bytes) => toB64(bytes).replace(/\+/g, '-').replace(/\//g, '_').rep
 const unb64u = (s) => fromB64(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4));
 
 async function hmac(env, data) {
-  if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 16) {
+  if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) {
     throw new HttpError(500, 'Falta configurar SESSION_SECRET (ver README).');
   }
   const key = await crypto.subtle.importKey('raw', enc.encode(env.SESSION_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -19,21 +19,28 @@ async function hmac(env, data) {
 }
 
 export async function signSession(env, user, ttl = SESSION_TTL) {
-  const payload = b64u(enc.encode(JSON.stringify({ ...user, exp: Math.floor(Date.now() / 1000) + ttl })));
-  return `${payload}.${b64u(await hmac(env, payload))}`;
+  const exp=Math.floor(Date.now()/1000)+ttl,sid=crypto.randomUUID();
+  const payload=b64u(enc.encode(JSON.stringify({...user,sid,exp})));
+  const token=`${payload}.${b64u(await hmac(env,payload))}`;
+  await env.DB.prepare('INSERT INTO Sesiones_Seguras(ID,ID_Empleado,Expira) VALUES(?,?,?)').bind(sid,user.empleado_id,exp).run();
+  return token;
 }
 
 export async function readSession(request, env) {
   const cookie = request.headers.get('Cookie') ?? '';
   const match = cookie.split(/;\s*/).find((c) => c.startsWith(`${COOKIE_NAME}=`));
   if (!match) return null;
-  const [payload, sig] = match.slice(COOKIE_NAME.length + 1).split('.');
+  if(match.length>4096)return null;
+  const parts=match.slice(COOKIE_NAME.length+1).split('.');if(parts.length!==2)return null;
+  const [payload,sig]=parts;
   if (!payload || !sig) return null;
   try {
     const expected = await hmac(env, payload);
     if (!timingSafeEqual(expected, unb64u(sig))) return null;
     const data = JSON.parse(new TextDecoder().decode(unb64u(payload)));
-    return data.exp > Date.now() / 1000 ? data : null;
+    if(!data.sid||data.exp<=Date.now()/1000)return null;
+    const session=await env.DB.prepare('SELECT ID_Empleado AS empleado_id FROM Sesiones_Seguras WHERE ID=? AND Expira>?').bind(data.sid,Math.floor(Date.now()/1000)).first();
+    return session?.empleado_id===data.empleado_id?data:null;
   } catch (err) {
     if (err instanceof HttpError) throw err;
     return null;

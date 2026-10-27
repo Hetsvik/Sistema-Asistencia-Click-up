@@ -21,15 +21,14 @@ const showError = (text) => {
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   message.hidden = true;
-  const codigo = $('#login-code').value.trim();
+  const correo = $('#login-email').value.trim();
   const pin = $('#login-pin').value;
-  const esAdmin = $('#login-role').value === 'admin';
-  if (!codigo || !pin) return showError('Ingresa tu código y tu PIN.');
+  if (!correo || !pin) return showError('Ingresa tu correo corporativo y contraseña.');
 
   submit.disabled = true;
   submit.textContent = 'Ingresando…';
   try {
-    const { user } = await Auth.login(codigo, pin, esAdmin);
+    const { user } = await Auth.login(correo, pin);
     location.replace(ROUTES[user.rol].inicio);
   } catch (err) {
     showError(err.message);

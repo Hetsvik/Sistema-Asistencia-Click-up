@@ -17,6 +17,9 @@ import * as notifications from './routes/notifications.js';
 import * as users from './routes/users.js';
 import * as announcements from './routes/announcements.js';
 import * as userManagement from './routes/user-management.js';
+import { preview } from './lib/identity.js';
+import { limit,cleanupSecurity } from './lib/rate-limit.js';
+import { secureResponse } from './lib/headers.js';
 import { validateAccountSession } from './lib/accounts.js';
 
 export const router = new Router();
@@ -64,6 +67,7 @@ router.get('/api/announcements', announcements.list, { auth: 'any' });
 router.post('/api/announcements', announcements.create, { auth: 'admin' });
 
 // Gestión de cuentas; /api/users conserva el catálogo de trabajadores.
+router.post('/api/admin/users/preview-email',preview,{auth:'admin'});
 router.get('/api/admin/users', userManagement.list, { auth: 'admin' });
 router.post('/api/admin/users', userManagement.create, { auth: 'admin' });
 router.get('/api/admin/users/:id', userManagement.detail, { auth: 'admin' });
@@ -84,12 +88,12 @@ export async function handleApi(request, env) {
     if (origin && origin !== url.origin) return fail(403, 'Origen no permitido.');
   }
 
+  try {
   const found = router.match(request.method, url.pathname);
   if (!found) return fail(404, 'Ruta no encontrada.');
   if (found.methodNotAllowed) return fail(405, 'Método no permitido.');
 
   const { route, params } = found;
-  try {
     let user = null;
     if (route.options.auth) {
       user = await readSession(request, env);
@@ -99,18 +103,23 @@ export async function handleApi(request, env) {
         throw new HttpError(403, 'No tienes permisos para esta acción.');
       }
     }
+    if(user){
+      await limit(env.DB,'api-account',String(user.empleado_id),600,60);
+      if(MUTATING.has(request.method))await limit(env.DB,'write-account',String(user.empleado_id),60,60);
+    }
     return await route.handler({ request, env, url, params, user, tz: env.TIMEZONE || DEFAULT_TZ });
   } catch (err) {
+    if(err instanceof URIError)return fail(400,'Ruta mal codificada.');
     if (err instanceof HttpError) return fail(err.status, err.message, err.headers);
-    console.error('[api]', request.method, url.pathname, err);
+    console.error('[api]', request.method, url.pathname, err?.name||'Error');
     return fail(500, 'Error interno del servidor.');
   }
 }
 
 export default {
-  async scheduled(event,env,ctx) {ctx.waitUntil(attachments.cleanup(env));},
+  async scheduled(event,env,ctx) {ctx.waitUntil(Promise.all([attachments.cleanup(env),cleanupSecurity(env)]));},
   async fetch(request, env) {
-    if (new URL(request.url).pathname.startsWith('/api/')) return handleApi(request, env);
-    return env.ASSETS.fetch(request);
+    if (new URL(request.url).pathname.startsWith('/api/')) return secureResponse(await handleApi(request, env));
+    return secureResponse(await env.ASSETS.fetch(request));
   },
 };

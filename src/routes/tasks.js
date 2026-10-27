@@ -1,3 +1,4 @@
+import { limit } from '../lib/rate-limit.js';
 import {commentFiles} from './attachments.js';
 import { HttpError, intParam, json, readJson, text } from '../lib/http.js';
 import { nowLocal, normalizeDateTime, priorityFor, toMs } from '../lib/dates.js';
@@ -143,19 +144,22 @@ export async function updateStatus({ request, env, user, params, tz }) {
   return json({ message: 'Estado actualizado.', task: withPriority(await loadTask(env.DB, id, user), ahora) });
 }
 
-export async function comments({ env, user, params }) {
+export async function comments({ env, user, params, url }) {
   const id = intParam(params.id, { min: 1 });
   await loadTask(env.DB, id, user);
-  const { results } = await env.DB.prepare(
-    'SELECT ID_Comentario AS id, Autor AS autor, Rol AS rol, Mensaje AS mensaje, Fecha AS fecha FROM Comentarios_Tarea WHERE ID_Tarea = ? ORDER BY Fecha ASC, ID_Comentario ASC',
-  ).bind(id).all();
-  const files=await commentFiles(env.DB,id);
-  return json({comments:results.map(c=>({...c,attachments:files.filter(f=>f.comment_id===c.id)}))});
+  const before=intParam(url.searchParams.get('before'),{min:1}),after=intParam(url.searchParams.get('after'),{min:0});
+  if(before!==null&&after!==null)throw new HttpError(400,'Usa before o after, no ambos.');
+  const ascending=after!==null;
+  const {results}=await env.DB.prepare(`SELECT ID_Comentario AS id,Autor AS autor,Rol AS rol,Mensaje AS mensaje,Fecha AS fecha FROM Comentarios_Tarea WHERE ID_Tarea=? ${before!==null?'AND ID_Comentario<?':after!==null?'AND ID_Comentario>?':''} ORDER BY ID_Comentario ${ascending?'ASC':'DESC'} LIMIT 51`).bind(id,...(before!==null?[before]:after!==null?[after]:[])).all();
+  const more=results.length>50,rows=results.slice(0,50);if(!ascending)rows.reverse();
+  const files=await commentFiles(env.DB,id,rows.map(c=>c.id));
+  return json({comments:rows.map(c=>({...c,attachments:files.filter(f=>f.comment_id===c.id)})),has_more:more,before:rows[0]?.id??null,after:rows.at(-1)?.id??null});
 }
 
 export async function addComment({ request, env, user, params }) {
   const id = intParam(params.id, { min: 1 });
   await loadTask(env.DB, id, user);
+  await limit(env.DB,'chat',String(user.empleado_id),20,60);
   const b = await readJson(request);
   const mensaje = text(b.mensaje, { field: 'El mensaje', max: 1000 });
   const rol = user.rol === 'admin' ? 'Administrador' : 'Empleado';

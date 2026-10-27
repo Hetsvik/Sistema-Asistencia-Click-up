@@ -1,4 +1,5 @@
 // Sesión del usuario: la fuente de verdad es la cookie HttpOnly del servidor (/api/auth/me).
+import { toast } from './ui.js';
 import { Auth } from './api.js';
 import { ROUTES } from './config.js';
 
@@ -16,5 +17,6 @@ export async function requireSession(rolEsperado) {
 }
 
 export async function logout() {
-  try { await Auth.logout(); } finally { location.replace(ROUTES.login); }
+  try { await Auth.logout(); location.replace(ROUTES.login); }
+  catch { toast('No se pudo confirmar el cierre de sesión. Revisa tu conexión y vuelve a intentarlo.','error'); }
 }

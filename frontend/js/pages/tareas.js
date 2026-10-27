@@ -106,7 +106,7 @@ async function openDetail(id) {
       ${isAdmin?'<label class="review-note">Observaciones de revisión<textarea class="input plain" id="d-review-note" maxlength="500" rows="2" placeholder="Obligatorio si devuelves la tarea para correcciones"></textarea></label>':''}
       ${task.estado==='En revisión'?'<p class="review-hint">Entrega pendiente de aprobación del administrador.</p>':''}
       <h3 class="sub">Conversación</h3>
-      <div class="chat" id="chat" aria-live="polite"></div>
+      <div class="module-actions"><button type="button" class="btn outline sm" id="chat-older" hidden>Ver mensajes anteriores</button><button type="button" class="btn outline sm" id="chat-latest" hidden>Volver a mensajes recientes</button></div><div class="chat" id="chat" aria-live="polite"></div>
       <form class="chat-form" id="chat-form">
         <input class="input plain" id="chat-input" maxlength="1000" placeholder="Escribe un mensaje…" autocomplete="off">
         <button class="btn sm" type="submit" aria-label="Enviar">${icon('send')}</button>
@@ -119,20 +119,32 @@ async function openDetail(id) {
   modal.el.addEventListener('click',e=>{if(sending&&(e.target===modal.el||e.target.closest('[data-close]'))){e.preventDefault();e.stopImmediatePropagation();toast('Espera la confirmación del envío antes de cerrar.');}},true);
   attachments=initAttachments(modal.el,{onChange:updateSend});chatInput.addEventListener('input',updateSend);updateSend();
   const chat = $('#chat', modal.el);
-  const paintChat = async () => {
+  let chatRows=[],hasOlder=false,browsingOlder=false;const latestButton=$('#chat-latest',modal.el);const olderButton=$('#chat-older',modal.el);
+  const paintChat = async (older=false) => {
     if(closed||painting||document.hidden)return;painting=true;
     try {
-      const { comments } = await Tasks.comments(id);
-      if(closed)return;fileMap.clear();for(const c of comments)for(const f of c.attachments||[])fileMap.set(f.id,f);
+      const first=chatRows[0]?.id,last=chatRows.at(-1)?.id;
+      const data=await Tasks.comments(id,older?{before:first}:last?{after:last}:{});
+      if(closed)return;
+      if(!last||older)hasOlder=data.has_more;
+      const map=new Map(chatRows.map(c=>[c.id,c]));for(const c of data.comments)map.set(c.id,c);
+      chatRows=[...map.values()].sort((a,b)=>a.id-b.id);
+      // Máximo 200 mensajes en DOM; el historial completo sigue paginado en el servidor.
+      if(chatRows.length>200){chatRows=older?chatRows.slice(0,200):chatRows.slice(-200);hasOlder=true;}
+      olderButton.hidden=!hasOlder;olderButton.disabled=false;
+      const comments=chatRows;
+      fileMap.clear();for(const c of comments)for(const f of c.attachments||[])fileMap.set(f.id,f);
       const stick = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
       chat.innerHTML = comments.length ? comments.map((c) => `
         <div class="msg ${c.autor === user.nombre ? 'mine' : ''}">
           <b>${esc(c.autor)} <i>${esc(c.rol)}</i></b><p>${esc(c.mensaje)}</p>${renderFiles(c.attachments)}<time>${fmtDateTime(c.fecha)}</time>
         </div>`).join('') : '<p class="muted center">Aún no hay mensajes.</p>';
       if (stick) chat.scrollTop = chat.scrollHeight;
-    } catch { /* se reintenta en el siguiente ciclo */ } finally {painting=false;}
+    } catch(e) { if(older)toast(e.message,'error'); } finally {painting=false;olderButton.disabled=false;}
   };
-  timer = setInterval(paintChat, POLL_COMMENTS_MS);
+  olderButton.onclick=()=>{browsingOlder=true;latestButton.hidden=false;olderButton.disabled=true;paintChat(true);};
+  latestButton.onclick=()=>{browsingOlder=false;latestButton.hidden=true;chatRows=[];paintChat();};
+  timer = setInterval(()=>{if(!browsingOlder)paintChat();}, POLL_COMMENTS_MS);
   await paintChat();
   chat.scrollTop = chat.scrollHeight;
 
@@ -147,7 +159,7 @@ async function openDetail(id) {
     sending=true;attachments.setBusy(true);chatInput.disabled=true;sendButton.setAttribute('aria-label',hasFiles?'Subiendo archivos':'Enviando mensaje');sendButton.innerHTML='<svg class="file-spinner" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="40 20"/></svg>';e.currentTarget.setAttribute('aria-busy','true');updateSend();
     try {
       if(hasFiles)await Tasks.sendAttachments(id,body);else await Tasks.addComment(id,text);
-      if(!closed){chatInput.value='';attachments.clear();await paintChat();chat.scrollTop=chat.scrollHeight;toast(hasFiles?'Archivos enviados.':'Mensaje enviado.','success');}
+      if(!closed){chatInput.value='';attachments.clear();browsingOlder=false;latestButton.hidden=true;chatRows=[];await paintChat();chat.scrollTop=chat.scrollHeight;toast(hasFiles?'Archivos enviados.':'Mensaje enviado.','success');}
     }catch(err){if(!closed)toast(err.message,'error');}
     finally{sending=false;if(!closed){attachments.setBusy(false);chatInput.disabled=false;sendButton.innerHTML=icon('send');sendButton.setAttribute('aria-label','Enviar');$('#chat-form',modal.el).setAttribute('aria-busy','false');updateSend();}}
   });

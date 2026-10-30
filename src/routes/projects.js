@@ -7,14 +7,14 @@ export async function list({env,url}) {
  const p=url.searchParams,q=(p.get('q')||'').trim().slice(0,120),where=[active],binds=[];
  if(q){where.push('(P.Nombre_Proyecto LIKE ? OR P.Area_Departamento LIKE ? OR D.Descripcion LIKE ?)');binds.push(...Array(3).fill('%'+q+'%'));}
  const order=p.get('order')||'desc';if(!['asc','desc'].includes(order))throw new HttpError(400,'Orden no válido.');
- const limit=intParam(p.get('limit'),{min:1,max:500,fallback:p.has('page')?10:200});
+ const limit=intParam(p.get('limit'),{min:1,max:100,fallback:20});
  if(p.has('page')){
   if(p.has('before'))throw new HttpError(400,'Usa página o cursor, no ambos.');
   const requested=intParam(p.get('page'),{min:1,max:1000000});
   const count=await env.DB.prepare(`SELECT COUNT(*) AS total ${from} WHERE ${where.join(' AND ')}`).bind(...binds).first();
   const pages=Math.max(1,Math.ceil(count.total/limit)),page=Math.min(requested,pages);
   const {results}=await env.DB.prepare(`SELECT ${fields} ${from} WHERE ${where.join(' AND ')} ORDER BY P.ID_Proyecto ${order} LIMIT ? OFFSET ?`).bind(...binds,limit,(page-1)*limit).all();
-  return json({projects:results,total:count.total,page,pages,has_more:page<pages});
+  return json({projects:results,total:count.total,page,pages,limit,has_more:page<pages});
  }
  // Compatibilidad con el catálogo paginado del formulario de tareas.
  const before=intParam(p.get('before'),{min:1});

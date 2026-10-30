@@ -1,0 +1,6 @@
+export const DEFAULT_PREFERENCES={assignments:true,status:true,text:'normal',theme:'dark'};
+const key=user=>`erp:preferences:${user.empleado_id}`;
+export function readPreferences(user){try{const p=JSON.parse(localStorage.getItem(key(user))||'{}');return {assignments:p.assignments!==false,status:p.status!==false,text:p.text==='large'?'large':'normal',theme:p.theme==='light'?'light':'dark'};}catch{return {...DEFAULT_PREFERENCES};}}
+export function savePreferences(user,p){try{localStorage.setItem(key(user),JSON.stringify({...readPreferences(user),...p}));applyPreferences(user);document.dispatchEvent(new Event('erp:preferences'));return true;}catch{return false;}}
+export function applyPreferences(user){const p=readPreferences(user);document.documentElement.dataset.text=p.text;document.documentElement.dataset.theme=p.theme;document.documentElement.style.colorScheme=p.theme;try{localStorage.setItem('erp:appearance',JSON.stringify({theme:p.theme,text:p.text}));}catch{}document.dispatchEvent(new Event('erp:appearance'));}
+export function noticeVisible(n,p){return n.tipo==='Asignada'?p.assignments:p.status;}

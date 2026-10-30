@@ -19,6 +19,7 @@ async function request(method, url, { body, params, silent401 = false } = {}) {
     res = await fetch(url + qs(params), {
       method,
       credentials: 'same-origin',
+      cache: 'no-store',
       headers: body !== undefined && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : undefined,
       body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
     });
@@ -63,7 +64,7 @@ export const Tasks = {
 
 export const Catalog = {
   projects: (params) => request('GET', API.projects, {params}),
-  users: (q) => request('GET', API.users, { params: { q } }),
+  users: (value) => request('GET', API.users, { params: typeof value==='string'?{q:value}:value }),
 };
 
 export const Reports = {

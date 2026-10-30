@@ -189,3 +189,10 @@ html[data-theme=light] .module-message.success{color:#216d47}
 .report-values table{min-width:0;width:100%;table-layout:fixed}
 .report-values th:first-child{width:66%}
 .report-values th,.report-values td{padding-left:16px;padding-right:16px;letter-spacing:0}
+
+/* Historial completo legible en móvil: no oculta estado/salida fuera de pantalla. */
+@media(max-width:600px){
+ #history-panel .table-wrap table{min-width:0;display:block}#history-panel thead{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+ #history-panel tbody{display:block}#history-panel tr{display:block;padding:10px 0;border-bottom:1px solid var(--line)}#history-panel td{display:block;border:0;padding:7px 14px;overflow-wrap:anywhere}#history-panel td[data-label]::before{content:attr(data-label);display:block;font-size:11px;letter-spacing:.07em;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px}
+ .metrics-pagination.list-pagination{display:block}.metrics-pagination.list-pagination>.pager-actions{margin-top:12px}
+}

@@ -11,7 +11,7 @@ export function notificationText(n) {
 }
 export function initNotifications(user) {
  const bell=$('#bell'),panel=$('#notif-panel'); if(!bell||!panel)return;
- let items=[],cursor=0,before=null,more=false,initialized=false,busy=false,clearing=false,generation=0,timer,failures=0,signature='';
+ let items=[],cursor=0,before=null,more=false,initialized=false,busy=false,clearing=false,generation=0,timer,failures=0,signature='',browsingOlder=false;
  bell.setAttribute('aria-controls','notif-panel');bell.setAttribute('aria-expanded','false');panel.setAttribute('aria-label','Notificaciones');
  const paint=()=>{
   const prefs=readPreferences(user),visible=items.filter(n=>noticeVisible(n,prefs));
@@ -32,14 +32,16 @@ export function initNotifications(user) {
   const map=new Map(items.filter(n=>n.id>hidden).map(n=>[n.id,n]));
   for(const n of data.notifications)if(n.id>hidden)map.set(n.id,n);
   items=[...map.values()].sort((a,b)=>b.id-a.id);
+
   if(!older)cursor=Math.max(cursor,data.cursor,hidden);
   if(initial||older){before=data.next_before;more=data.has_more;}
+  if(items.length>200){items=older?items.slice(-200):items.slice(0,200);before=items.at(-1)?.id;if(!older)more=true;}
   paint();
   if(!initial&&!older&&data.notifications.length)document.dispatchEvent(new CustomEvent('erp:task-events',{detail:data.notifications}));
  };
  const schedule=()=>{clearTimeout(timer);if(!document.hidden&&navigator.onLine)timer=setTimeout(refresh,failures?Math.min(30000,POLL_NOTIFICATIONS_MS*2**Math.min(failures,4)):POLL_NOTIFICATIONS_MS);};
  async function refresh(){
-  if(busy||clearing||document.hidden||!navigator.onLine){schedule();return;}
+  if(busy||clearing||document.hidden||!navigator.onLine||browsingOlder){schedule();return;}
   busy=true;const token=generation;
   try{
    const initial=!initialized,data=await Notifications.list(initial?{}:{since:cursor});
@@ -51,7 +53,7 @@ export function initNotifications(user) {
   finally{busy=false;schedule();}
  }
  async function older(){
-  if(busy||!more||!before||clearing)return;busy=true;const token=generation;
+  if(busy||!more||!before||clearing)return;browsingOlder=true;busy=true;const token=generation;
   try{const data=await Notifications.list({before});if(token===generation){failures=0;absorb(data,{older:true});}}
   catch{failures++;paint();}finally{busy=false;}
  }
@@ -63,8 +65,8 @@ export function initNotifications(user) {
   catch(err){toast(err.message||'No se pudieron limpiar los avisos.','error');}
   finally{clearing=false;paint();schedule();}
  });
- const close=()=>{panel.hidden=true;bell.setAttribute('aria-expanded','false');};
- bell.addEventListener('click',e=>{e.stopPropagation();panel.hidden=!panel.hidden;bell.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)refresh();});
+ const close=()=>{if(browsingOlder){browsingOlder=false;initialized=false;items=[];}panel.hidden=true;bell.setAttribute('aria-expanded','false');};
+ bell.addEventListener('click',e=>{e.stopPropagation();if(!panel.hidden){close();return;}panel.hidden=false;bell.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)refresh();});
  document.addEventListener('click',e=>{if(!panel.contains(e.target))close();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden){close();bell.focus();}});
  document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(!document.hidden)refresh();});

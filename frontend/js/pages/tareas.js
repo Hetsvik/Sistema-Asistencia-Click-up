@@ -1,3 +1,7 @@
+import {routeState} from '../list-state.js';
+import {pager} from '../page-tools.js';
+import {catalogPicker} from '../catalog-picker.js';
+import {createPoll} from '../polling.js';
 import {renderFiles,fileAction} from '../file-viewer.js';
 import { initAttachments } from '../attachments.js';
 import { Catalog, Tasks } from '../api.js';
@@ -11,7 +15,10 @@ const isAdmin = role === 'admin';
 const user = await initPage({ role, page: 'inicio' });
 
 const list = $('#task-list');
-const filters = { estado: '', q: '' };
+const route=routeState({page:1,limit:20,estado:'',q:''});
+let page=1,sequence=0;const filters={estado:'',q:''};
+const restore=()=>{const v=route.read();page=v.page;filters.estado=v.estado;filters.q=v.q;$('#task-search').value=v.q;$$('[data-estado]').forEach(b=>b.classList.toggle('is-active',b.dataset.estado===v.estado));};
+const nav=document.createElement('nav');list.after(nav);
 let tasks = [];
 
 // ---------- Listado ----------
@@ -38,11 +45,11 @@ function render() {
   }).join('');
 }
 
-async function load() {
-  try {
-    tasks = (await Tasks.list({ estado: filters.estado, q: filters.q })).tasks;
-    render();
-  } catch (err) { toast(err.message, 'error'); }
+async function load(next=page){
+ const seq=++sequence;list.setAttribute('aria-busy','true');
+ try{const data=await Tasks.list({estado:filters.estado,q:filters.q,page:next,limit:route.read().limit});if(seq!==sequence)return;tasks=data.tasks;page=data.page;render();route.write({page,limit:data.limit,...filters});pager(data,load,{element:nav,onSize:limit=>{route.write({limit,page:1});load(1);}});}
+ catch(err){if(seq===sequence)toast(err.message,'error');}
+ finally{if(seq===sequence)list.setAttribute('aria-busy','false');}
 }
 
 list.addEventListener('click', async (e) => {
@@ -72,9 +79,9 @@ menu.addEventListener('click', (e) => {
   if (!b) return;
   filters.estado = b.dataset.estado;
   $$('button', menu).forEach((x) => x.classList.toggle('is-active', x === b));
-  load();
+  load(1);
 });
-$('#task-search').addEventListener('input', debounce((e) => { filters.q = e.target.value.trim(); load(); }, 350));
+$('#task-search').addEventListener('input', debounce((e) => { filters.q = e.target.value.trim(); load(1); }, 350));
 
 document.addEventListener('erp:task-events',()=>load());
 
@@ -89,7 +96,7 @@ async function openDetail(id) {
   const modal = openModal({
     title: `Tarea · ${task.proyecto}`,
     wide: true,
-    onClose: () => {window.removeEventListener('beforeunload',leaveGuard);closed=true;clearInterval(timer);attachments?.destroy();},
+    onClose: () => {window.removeEventListener('beforeunload',leaveGuard);closed=true;timer?.stop();attachments?.destroy();},
     html: `
       <dl class="detail">
         <div><dt>Descripción</dt><dd>${esc(task.descripcion)}</dd></div>
@@ -140,12 +147,12 @@ async function openDetail(id) {
           <b>${esc(c.autor)} <i>${esc(c.rol)}</i></b><p>${esc(c.mensaje)}</p>${renderFiles(c.attachments)}<time>${fmtDateTime(c.fecha)}</time>
         </div>`).join('') : '<p class="muted center">Aún no hay mensajes.</p>';
       if (stick) chat.scrollTop = chat.scrollHeight;
-    } catch(e) { if(older)toast(e.message,'error'); } finally {painting=false;olderButton.disabled=false;}
+    } catch(e) { if(older)toast(e.message,'error');throw e; } finally {painting=false;olderButton.disabled=false;}
   };
-  olderButton.onclick=()=>{browsingOlder=true;latestButton.hidden=false;olderButton.disabled=true;paintChat(true);};
-  latestButton.onclick=()=>{browsingOlder=false;latestButton.hidden=true;chatRows=[];paintChat();};
-  timer = setInterval(()=>{if(!browsingOlder)paintChat();}, POLL_COMMENTS_MS);
-  await paintChat();
+  olderButton.onclick=()=>{browsingOlder=true;latestButton.hidden=false;olderButton.disabled=true;paintChat(true).catch(()=>{});};
+  latestButton.onclick=()=>{browsingOlder=false;latestButton.hidden=true;chatRows=[];paintChat().catch(()=>{});};
+  timer=createPoll(()=>paintChat(),{interval:POLL_COMMENTS_MS,active:()=>!closed&&!browsingOlder});
+  await timer.start();
   chat.scrollTop = chat.scrollHeight;
 
   chat.addEventListener('click',async e=>{
@@ -177,21 +184,17 @@ async function openDetail(id) {
 
 // ---------- Crear tarea (admin) ----------
 async function openCreate() {
-  let users, projects=[];
-  try {
-    users=(await Catalog.users()).users;
-    let before;
-    do {const data=await Catalog.projects({before});projects.push(...data.projects);before=data.has_more?data.next_before:null;} while(before);
-  } catch(err) {return toast(err.message,'error');}
-  const modal=openModal({title:'Añadir tarea',html:`<form id="new-task" class="form-grid">
-    <label class="full">Trabajador<select class="input plain" name="trabajador_id" required><option value="">Selecciona…</option>${users.map(u=>`<option value="${u.id}">${esc(u.nombre)} · ${esc(u.cargo)}</option>`).join('')}</select></label>
-    <label class="full">Proyecto<select class="input plain" name="proyecto_id" required><option value="">Selecciona…</option>${projects.map(p=>`<option value="${p.id}">${esc(p.nombre)} (${esc(p.area)})</option>`).join('')}</select></label>
+  const pickers=[];
+  const modal=openModal({title:'Añadir tarea',onClose:()=>pickers.forEach(p=>p.destroy()),html:`<form id="new-task" class="form-grid">
+    <label class="full">Buscar trabajador<input type="search" class="input plain" id="pick-worker" placeholder="Nombre o código"></label><label class="full">Trabajador<select class="input plain" name="trabajador_id" required><option value="">Selecciona…</option></select></label>
+    <label class="full">Buscar proyecto<input type="search" class="input plain" id="pick-project" placeholder="Nombre, área o descripción"></label><label class="full">Proyecto<select class="input plain" name="proyecto_id" required><option value="">Selecciona…</option></select></label>
     <a class="project-form-link full" href="/admin/proyectos/nuevo">+ Crear un proyecto antes de asignar la tarea</a>
     <label class="full">Descripción<textarea class="input plain" name="descripcion" rows="3" maxlength="500" required></textarea></label>
     <label class="full">Prioridad<select class="input plain" name="prioridad" required><option>Alta</option><option selected>Media</option><option>Baja</option></select></label>
     <div id="task-datetime" class="full"></div><p class="form-message is-error full" id="f-error" hidden role="alert"></p>
     <div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button><button type="submit" class="btn">Crear tarea</button></div></form>`});
   const form=$('#new-task',modal.el),picker=initDateTimePicker($('#task-datetime',form),{label:'Fecha y hora de entrega'});
+  pickers.push(catalogPicker({select:form.elements.trabajador_id,input:$('#pick-worker',form),fetchPage:Catalog.users,key:'users',label:u=>u.nombre+' · '+u.codigo}),catalogPicker({select:form.elements.proyecto_id,input:$('#pick-project',form),fetchPage:Catalog.projects,key:'projects',label:p=>p.nombre+' · '+p.area}));
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(form));
@@ -217,7 +220,7 @@ async function openCreate() {
 }
 $('#btn-add')?.addEventListener('click', openCreate);
 
-await load();
+route.onChange(()=>{restore();load(page);});restore();await load(page);
 // El identificador se conserva internamente para abrir una tarea desde calendario/notificaciones.
 const linkedTask = new URLSearchParams(location.search).get('tarea');
 if (linkedTask && /^[1-9]\d*$/.test(linkedTask)) await openDetail(Number(linkedTask));

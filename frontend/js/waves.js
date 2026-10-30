@@ -1,11 +1,11 @@
-// Fondo animado de ondas doradas (pantalla de login).
+  // Fondo animado de ondas doradas (pantalla de login).
 // Mejoras: respeta "reducir movimiento", pausa si la pestaña está oculta y ajusta a pantallas HiDPI.
 
 export function startWaves(canvas) {
   if (!canvas) return () => {};
   const ctx = canvas.getContext('2d');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  let width = 0, height = 0, step = 0, raf = 0;
+  let width = 0, height = 0, step = 0, raf = 0, last=0;
 
   const resize = () => {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -34,10 +34,10 @@ export function startWaves(canvas) {
         ctx.stroke();
       }
     }
-    step += 1;
+    step += 2;
   }
 
-  const loop = () => { draw(); raf = requestAnimationFrame(loop); };
+  const loop = (time=0) => { if(time-last>=1000/30){last=time;draw();}raf=requestAnimationFrame(loop); };
   const start = () => { cancelAnimationFrame(raf); if (reduce.matches) draw(); else loop(); };
   const onVisibility = () => (document.hidden ? cancelAnimationFrame(raf) : start());
 
@@ -47,4 +47,3 @@ export function startWaves(canvas) {
   reduce.addEventListener('change', start);
   return () => { cancelAnimationFrame(raf); document.removeEventListener('visibilitychange', onVisibility); };
 }
-//Se agrego las nuevas interfaces

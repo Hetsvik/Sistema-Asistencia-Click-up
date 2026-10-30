@@ -2,7 +2,7 @@
    ERP Intranet · Arquitectura & Servicios Generales
    Hoja de estilos general (negro & dorado)
    ========================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600;700&display=swap');
+/* Fuentes descubiertas desde el HTML, no mediante @import encadenado. */
 
 :root{
   --bg:#080808; --bg-2:#0f0f0f; --surface:#141414; --surface-2:#1b1b1b; --surface-3:#232323;
@@ -345,3 +345,8 @@ html[data-theme=light] .auth-copy h1{background:none;color:var(--gold-light)}
 
 @media(max-width:650px){.module-page.settings-page .page-title{font-size:1.32rem;letter-spacing:.02em}}
 .file-spinner{width:22px;height:22px;animation:file-spin 1s linear infinite;display:block;margin:auto}@keyframes file-spin{to{transform:rotate(360deg)}}
+
+/* Navegación de listados y catálogos, también en móvil. */
+.list-pagination{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between;margin-top:1.25rem;padding:1rem 0;border-top:1px solid var(--line)}
+.pager-actions,.catalog-pagination{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center}.pager-actions label{display:flex;gap:.5rem;align-items:center;font-size:.85rem}.pager-actions input{width:5.5rem;min-width:0}.pager-actions select{width:5.5rem;min-width:0}.catalog-pagination{margin:.5rem 0;font-size:.8rem}.catalog-pagination .btn{padding:.45rem .65rem}
+@media(max-width:600px){.list-pagination{display:block}.pager-actions{margin-top:1rem}.pager-actions label{flex:1 1 42%;justify-content:space-between}}

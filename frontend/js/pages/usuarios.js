@@ -1,3 +1,4 @@
+import {routeState} from '../list-state.js';
 import { ManagedUsers } from '../api.js';
 import { initPage } from '../layout.js';
 import { ROUTES } from '../config.js';
@@ -7,17 +8,20 @@ import { enableMenuKeyboard, message, pager, roles } from '../page-tools.js';
 async function main(){
   const current=await initPage({role:'admin',page:'usuarios'});
   enableMenuKeyboard();
+  const route=routeState({page:1,limit:20,q:'',rol:'',estado:''});
+  const restore=()=>{const s=route.read();$('#user-search').value=s.q;$('#user-role').value=s.rol;$('#user-status').value=s.estado;return s;};
   let sequence=0,page=1,rows=[];
   const notice=sessionStorage.getItem('erp-user-notice');
   if(notice){$('#created-message').textContent=notice;$('#created-message').hidden=false;sessionStorage.removeItem('erp-user-notice');}
   const load=async(next=1)=>{
     const seq=++sequence;message(null);$('#user-table').setAttribute('aria-busy','true');
     try{
-      const data=await ManagedUsers.list({q:$('#user-search').value.trim(),rol:$('#user-role').value,estado:$('#user-status').value,page:next});
+      const data=await ManagedUsers.list({q:$('#user-search').value.trim(),rol:$('#user-role').value,estado:$('#user-status').value,page:next,limit:route.read().limit});
       if(seq!==sequence)return;page=data.page;rows=data.users;
       $('#stat-active').textContent=data.stats.activos;$('#stat-admin').textContent=data.stats.administradores;$('#stat-worker').textContent=data.stats.trabajadores;
       $('#user-list').innerHTML=rows.length?rows.map(u=>`<tr><td data-label="Nombre"><div class="user-identity">${esc(u.nombre)}<small>${esc(u.correo_corporativo)}${u.id===current.empleado_id?' · Tu cuenta':''}${u.requiere_clave?' · Requiere nueva contraseña':''}</small></div><span class="account-badge${u.estado==='Inactivo'?' inactive':''}">${u.estado==='Activo'?'● Activo':'○ Inactivo'}</span></td><td data-label="Rol">${roles[u.rol]}</td><td data-label="Teléfono">${esc(u.telefono || '—')}</td><td data-label="Acciones"><div class="user-row-actions"><a class="btn outline sm" href="${ROUTES.admin.usuarioEditar(u.id)}" aria-label="Editar a ${esc(u.nombre)}">Editar</a><button type="button" class="btn ${u.estado==='Activo'?'danger':'outline'} sm" data-status="${u.id}" ${u.id===current.empleado_id?'disabled title="No puedes desactivar tu propia cuenta"':''} aria-label="${u.estado==='Activo'?'Desactivar':'Activar'} a ${esc(u.nombre)}">${u.estado==='Activo'?'Desactivar':'Activar'}</button></div></td></tr>`).join(''):'<tr><td colspan="4">No se encontraron usuarios con estos filtros.</td></tr>';
-      pager(data,load);
+      route.write({page:data.page,limit:data.limit,q:$('#user-search').value.trim(),rol:$('#user-role').value,estado:$('#user-status').value});
+      pager(data,load,{onSize:limit=>{route.write({limit,page:1});load();}});
     }catch(err){if(seq===sequence){message(err);$('#user-list').innerHTML='<tr><td colspan="4">No se pudo cargar la lista. Cambia los filtros para volver a intentar.</td></tr>';$('#pagination').replaceChildren();}}
     finally{if(seq===sequence)$('#user-table').setAttribute('aria-busy','false');}
   };
@@ -33,6 +37,6 @@ async function main(){
       catch(err){const el=$('#status-error',modal.el);el.textContent=err.message;el.hidden=false;}
     });
   });
-  await load();
+  route.onChange(()=>load(restore().page));await load(restore().page);
 }
 main().catch(err=>console.error('Usuarios:',err));

@@ -41,16 +41,6 @@ export async function summary({ env, user, url, tz }) {
      FROM Asistencia WHERE Fecha_Calculada BETWEEN ? AND ?${filtro}`,
   ).bind(rango.desde, rango.hasta, ...extra).first();
 
-  const tareas = await env.DB.prepare(
-    `SELECT COUNT(*) AS total,
-            COALESCE(SUM(Estado_Tarea = 'Asignada'), 0) AS asignadas,
-            COALESCE(SUM(Estado_Tarea = 'En Progreso'), 0) AS en_progreso,
-            COALESCE(SUM(Estado_Tarea = 'En revisión'), 0) AS en_revision,
-            COALESCE(SUM(Estado_Tarea = 'Completada'), 0) AS completadas,
-            COALESCE(SUM(Observaciones LIKE '%FUERA DE PLAZO%'), 0) AS fuera_de_plazo
-     FROM Tareas WHERE Fecha BETWEEN ? AND ?${filtro}`,
-  ).bind(rango.desde, rango.hasta, ...extra).first();
-
   // Asistencias esperadas = días hábiles transcurridos × trabajadores considerados.
   let esperadas = null;
   if (periodo !== 'todo') {
@@ -68,6 +58,7 @@ export async function summary({ env, user, url, tz }) {
   const taskBinds=[rango.desde,rango.hasta,...extra,...(prioridad?[prioridad]:[])];
   const {results:prioridades}=await env.DB.prepare(`SELECT COALESCE(D.Prioridad,'Sin prioridad') prioridad,COUNT(*) total,SUM(T.Estado_Tarea='Completada') completadas FROM Tareas T LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere} GROUP BY COALESCE(D.Prioridad,'Sin prioridad')`).bind(...taskBinds).all();
   const filtered=await env.DB.prepare(`SELECT COUNT(*) total,COALESCE(SUM(T.Estado_Tarea='Asignada'),0) asignadas,COALESCE(SUM(T.Estado_Tarea='En Progreso'),0) en_progreso,COALESCE(SUM(T.Estado_Tarea='En revisión'),0) en_revision,COALESCE(SUM(T.Estado_Tarea='Completada'),0) completadas,COALESCE(SUM(T.Observaciones LIKE '%FUERA DE PLAZO%'),0) fuera_de_plazo FROM Tareas T LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere}`).bind(...taskBinds).first();
+  if(p.get('detalle')==='1'&&filtered.total>10000)throw new HttpError(413,'Demasiadas tareas para exportar. Selecciona un trabajador y un periodo menor.');
   const puntualidad=await punctuality(env.DB,{desde:rango.desde,hasta:rango.hasta,workerId:trabajadorId,includeDetails:p.get('detalle')==='1'});
   let tareas_detalle;
   if(p.get('detalle')==='1'){

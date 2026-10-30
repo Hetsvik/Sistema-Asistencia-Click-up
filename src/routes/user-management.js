@@ -1,3 +1,4 @@
+import {pagination} from '../lib/pagination.js';
 import { HttpError, intParam, json, readJson, text } from '../lib/http.js';
 import { hashPin } from '../lib/security.js';
 import { ACCOUNT_TYPES } from '../lib/accounts.js';
@@ -55,20 +56,20 @@ export async function list({ env, url }) {
   const estado = url.searchParams.get('estado') || '';
   if (rol) role(rol);
   if (estado && !['Activo','Inactivo'].includes(estado)) throw new HttpError(400, 'Estado no válido.');
-  const page = intParam(url.searchParams.get('page'), { min: 1, max: 100000, fallback: 1 });
+  const {page,limit}=pagination(url.searchParams);
   const clauses = [], args = [];
   if (q) { clauses.push('(nombre LIKE ? OR codigo LIKE ? OR correo_corporativo LIKE ?)'); args.push(`%${q}%`,`%${q}%`,`%${q}%`); }
   if (rol) { clauses.push('rol=?'); args.push(rol); }
   if (estado) { clauses.push('estado=?'); args.push(estado); }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const total = await env.DB.prepare(`SELECT COUNT(*) AS n FROM (${ALL}) ${where}`).bind(...args).first();
-  const pages = Math.max(1,Math.ceil(total.n / 20)), current = Math.min(page,pages);
-  const { results } = await env.DB.prepare(`SELECT ${PUBLIC} FROM (${ALL}) ${where} ORDER BY nombre COLLATE NOCASE,id LIMIT 20 OFFSET ?`)
-    .bind(...args,(current-1)*20).all();
+  const pages = Math.max(1,Math.ceil(total.n / limit)), current = Math.min(page,pages);
+  const { results } = await env.DB.prepare(`SELECT ${PUBLIC} FROM (${ALL}) ${where} ORDER BY nombre COLLATE NOCASE,id LIMIT ? OFFSET ?`)
+    .bind(...args,limit,(current-1)*limit).all();
   const stats = await env.DB.prepare(`SELECT COUNT(*) AS activos,
     COALESCE(SUM(rol='admin'),0) AS administradores, COALESCE(SUM(rol='trabajador'),0) AS trabajadores
     FROM (${ALL}) WHERE estado='Activo'`).first();
-  return json({ users: results, total: total.n, page: current, pages, stats });
+  return json({ users: results, total: total.n, page: current, pages, limit, has_more:current<pages, stats });
 }
 export async function detail({ env, params }) {
   const { pin, ...user } = await getAccount(env.DB,idOf(params));

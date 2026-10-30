@@ -1,3 +1,5 @@
+import {pagination,pageInfo} from '../lib/pagination.js';
+import {isDate} from '../lib/dates.js';
 import { limit } from '../lib/rate-limit.js';
 import {commentFiles} from './attachments.js';
 import { HttpError, intParam, json, readJson, text } from '../lib/http.js';
@@ -60,12 +62,22 @@ export async function list({ env, user, url, tz }) {
     const cutoff = new Date(toMs(nowLocal(tz).fechaHora)+24*60*60*1000).toISOString().slice(0,19).replace('T',' ');
     add("t.Estado_Tarea <> 'Completada' AND t.Fecha_Entrega <= ?", cutoff);
   }
-  const limit = intParam(p.get('limit'), { min: 1, max: 500, fallback: 200 });
+  const day=p.get('dia');if(day){if(!isDate(day))throw new HttpError(400,'Día no válido.');add('t.Fecha_Entrega>=? AND t.Fecha_Entrega<?',day+' 00:00:00',day+' 24:00:00');}
+  const from=SELECT.slice(SELECT.indexOf('  FROM Tareas'));
+  const condition=where.length?'WHERE '+where.join(' AND '):'';
+  if(p.get('resumen')==='1'){
+   const stats=await env.DB.prepare(`SELECT COUNT(*) total,COALESCE(SUM(t.Estado_Tarea<>'Completada'),0) pendientes ${from} ${condition}`).bind(...binds).first();return json(stats);
+  }
+  if(calendar!==null&&p.get('vista')==='resumen'){
+   const {results:days}=await env.DB.prepare(`SELECT substr(t.Fecha_Entrega,1,10) fecha,COUNT(*) total ${from} ${condition} GROUP BY substr(t.Fecha_Entrega,1,10)`).bind(...binds).all();return json({days});
+  }
+  const pg=pagination(p),count=await env.DB.prepare(`SELECT COUNT(*) n ${from} ${condition}`).bind(...binds).first(),meta=pageInfo(count.n,pg);
+  const limit=pg.limit;
   const sql = `${SELECT} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-               ORDER BY (t.Estado_Tarea = 'Completada'), t.Fecha_Entrega ASC, t.ID_Tarea ASC ${calendar !== null || notifications !== null ? '' : 'LIMIT ?'}`;
-  const { results } = await env.DB.prepare(sql).bind(...binds, ...(calendar !== null || notifications !== null ? [] : [limit])).all();
+               ORDER BY (t.Estado_Tarea = 'Completada'), t.Fecha_Entrega ASC, t.ID_Tarea ASC LIMIT ? OFFSET ?`;
+  const { results } = await env.DB.prepare(sql).bind(...binds, limit,meta.offset).all();
   const ahora = nowLocal(tz).fechaHora;
-  return json({ tasks: results.map((t) => withPriority(t, ahora)) });
+  return json({ tasks: results.map((t) => withPriority(t, ahora)),...meta });
 }
 
 export async function detail({ env, user, params, tz }) {

@@ -8,8 +8,7 @@ $('#welcome').textContent = `Hola, ${user.nombre.split(' ')[0]}`;
 
 // Resumen rápido en las tarjetas (si algo falla, se deja el texto por defecto).
 try {
-  const { tasks } = await Tasks.list();
-  const pendientes = tasks.filter((t) => t.estado !== 'Completada').length;
+  const {pendientes} = await Tasks.list({resumen:'1'});
   $('[data-stat="tareas"]').textContent = pendientes
     ? `${pendientes} tarea${pendientes === 1 ? '' : 's'} pendiente${pendientes === 1 ? '' : 's'}`
     : 'Sin tareas pendientes';

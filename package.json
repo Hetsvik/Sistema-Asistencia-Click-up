@@ -17,7 +17,10 @@
     "deploy:check": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
     "db:hash-pins:local": "wrangler d1 execute bd-empresa2 --local --file=database/private/actualizar_pins.sql",
-    "db:hash-pins:remote": "wrangler d1 execute bd-empresa2 --remote --file=database/private/actualizar_pins.sql"
+    "db:hash-pins:remote": "wrangler d1 execute bd-empresa2 --remote --file=database/private/actualizar_pins.sql",
+    "build:assets": "node scripts/build-assets.mjs",
+    "predeploy": "npm run build:assets",
+    "predeploy:check": "npm run build:assets"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

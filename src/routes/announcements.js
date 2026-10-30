@@ -1,3 +1,4 @@
+import {pagination} from '../lib/pagination.js';
 import { HttpError, intParam, json, readJson, text } from '../lib/http.js';
 import { nowLocal } from '../lib/dates.js';
 
@@ -6,8 +7,7 @@ export async function list({ env, url }) {
   const sort = url.searchParams.get('sort') ?? 'fecha';
   const order = url.searchParams.get('order') ?? 'desc';
   if (!['nombre','fecha'].includes(sort) || !['asc','desc'].includes(order)) throw new HttpError(400, 'Orden no válido.');
-  const page = intParam(url.searchParams.get('page'), { min: 1, max: 100000, fallback: 1 });
-  const limit = 20;
+  const {page,limit}=pagination(url.searchParams);
   const where = q ? 'WHERE Nombre LIKE ? OR Motivo LIKE ?' : '';
   const args = q ? [`%${q}%`, `%${q}%`] : [];
   const total = await env.DB.prepare(`SELECT COUNT(*) AS n FROM Anuncios ${where}`).bind(...args).first();
@@ -18,7 +18,7 @@ export async function list({ env, url }) {
   const { results } = await env.DB.prepare(`SELECT ID_Anuncio AS id, Nombre AS nombre, Motivo AS motivo,
       Fecha_Creacion AS fecha FROM Anuncios ${where} ORDER BY ${col} ${dir}, ID_Anuncio ${dir} LIMIT ? OFFSET ?`)
     .bind(...args, limit, (current - 1) * limit).all();
-  return json({ announcements: results, total: total.n, page: current, pages, tz: 'America/Lima' });
+  return json({ announcements: results, total: total.n, page: current, pages, limit, has_more:current<pages, tz: 'America/Lima' });
 }
 
 export async function create({ request, env, user }) {

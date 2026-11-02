@@ -7,11 +7,13 @@ export async function list({env,user,url}) {
  const limit=intParam(p.get('limit'),{min:1,max:100,fallback:40});
  const hidden=(await env.DB.prepare('SELECT Ocultas_Hasta AS n FROM Notificaciones_Lectura WHERE ID_Empleado=?').bind(user.empleado_id).first())?.n||0;
  const where=['ID_Empleado=?','ID_Notificacion>?'], binds=[user.empleado_id,Math.max(hidden,since??0)];
+ // Si una persona cambia de rol, las antiguas alarmas tampoco aparecen al administrador.
+ if(user.rol==='admin')where.push("Tipo NOT LIKE 'Vencimiento:%'");
  if(before!==null){where.push('ID_Notificacion<?');binds.push(before);}
- const {results}=await env.DB.prepare(`SELECT ${fields} FROM Notificaciones_Tarea WHERE ${where.join(' AND ')} ORDER BY ID_Notificacion ${since!==null?'ASC':'DESC'} LIMIT ?`).bind(...binds,limit+1).all();
+ const {results}=await env.DB.prepare(`SELECT ${fields}, EXISTS(SELECT 1 FROM Tareas T WHERE T.ID_Tarea=Notificaciones_Tarea.ID_Tarea AND T.Fecha_Entrega=Notificaciones_Tarea.Fecha_Entrega AND T.Estado_Tarea IN ('Asignada','En Progreso')) AS vigente FROM Notificaciones_Tarea WHERE ${where.join(' AND ')} ORDER BY ID_Notificacion ${since!==null?'ASC':'DESC'} LIMIT ?`).bind(...binds,limit+1).all();
  const has_more=results.length>limit, rows=results.slice(0,limit);
  const cursor=Math.max(hidden,since??0,...rows.map(x=>x.id));
- return json({notifications:rows,cursor,has_more,next_before:rows.length?Math.min(...rows.map(x=>x.id)):null,cleared_through:hidden});
+ return json({notifications:rows,cursor,has_more,next_before:rows.length?Math.min(...rows.map(x=>x.id)):null,cleared_through:hidden,servidor_utc:new Date().toISOString()});
 }
 export async function clear({env,user,request}) {
  const b=await readJson(request),through=intParam(b.through_id,{min:0});

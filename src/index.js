@@ -21,6 +21,7 @@ import { preview } from './lib/identity.js';
 import { limit,cleanupSecurity } from './lib/rate-limit.js';
 import { secureResponse } from './lib/headers.js';
 import { validateAccountSession } from './lib/accounts.js';
+import { generateDeadlineAlarms } from './lib/deadline-alarms.js';
 
 export const router = new Router();
 
@@ -117,7 +118,10 @@ export async function handleApi(request, env) {
 }
 
 export default {
-  async scheduled(event,env,ctx) {ctx.waitUntil(Promise.all([attachments.cleanup(env),cleanupSecurity(env)]));},
+  async scheduled(event,env,ctx) {
+    if(event.cron === '* * * * *') ctx.waitUntil(generateDeadlineAlarms(env.DB,event.scheduledTime,env.TIMEZONE || DEFAULT_TZ));
+    else if(event.cron === '17 * * * *') ctx.waitUntil(Promise.all([attachments.cleanup(env),cleanupSecurity(env)]));
+  },
   async fetch(request, env) {
     if (new URL(request.url).pathname.startsWith('/api/')) {const start=performance.now(),response=await handleApi(request,env);response.headers.set('Server-Timing',`app;dur=${(performance.now()-start).toFixed(1)}`);return secureResponse(response);}
     return secureResponse(await env.ASSETS.fetch(request));

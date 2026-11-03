@@ -24,4 +24,4 @@ export async function logout({request,env,url}){
  if(user)await env.DB.prepare('DELETE FROM Sesiones_Seguras WHERE ID=?').bind(user.sid).run();
  return json({ok:true},200,{'Set-Cookie':clearCookie(url)});
 }
-export async function me({user}){const {exp,sid,...safe}=user;return json({user:safe});}
+export async function me({user,env}){const {exp,sid,...safe}=user;const photo=await env.DB.prepare('SELECT 1 ok FROM Fotos_Usuario WHERE ID_Empleado=?').bind(user.empleado_id).first();return json({user:{...safe,tiene_foto:Boolean(photo)}});}

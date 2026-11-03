@@ -15,7 +15,7 @@ const sidebarHtml = (user, page) => {
   <aside class="sidebar" aria-label="Menú principal">
     <div class="brand"><span class="mark">A</span>Arquitectura &amp; SG</div>
     <div class="profile">
-      <div class="avatar"><span>${icon('user')}</span></div>
+      <div class="avatar"><span id="sidebar-avatar">${icon('user')}</span></div>
       <small>Bienvenido</small>
       <strong title="${esc(user.nombre)}">${first}</strong><br>
       <span class="role">${ROL_LABEL[user.rol]}</span>
@@ -43,6 +43,10 @@ export async function initPage({ role, page }) {
   }
   document.body.insertAdjacentHTML('afterbegin', '<input type="checkbox" id="menu-check" aria-hidden="true" tabindex="-1">');
   $('.app').insertAdjacentHTML('afterbegin', sidebarHtml(user, page));
+  const avatar=$('#sidebar-avatar');
+  function showPhoto(hasPhoto){if(!hasPhoto){avatar.innerHTML=icon('user');return;}const img=document.createElement('img');img.alt='Foto de perfil';img.onerror=()=>{avatar.innerHTML=icon('user');};img.src=`/api/user-photo/${encodeURIComponent(user.empleado_id)}?v=${Date.now()}`;avatar.replaceChildren(img);}
+  showPhoto(user.tiene_foto);
+  document.addEventListener('erp:photo-changed',event=>showPhoto(Boolean(event.detail?.hasPhoto)));
 
   $$('[data-soon]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); toast('Esta sección estará disponible pronto.'); }));
   $('[data-logout]').addEventListener('click', (e) => { e.preventDefault(); logout(); });

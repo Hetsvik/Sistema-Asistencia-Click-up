@@ -368,3 +368,6 @@ dialog.modal.task-create-wide{width:min(96vw,900px)}
 #user-photo-preview,#own-photo-preview{object-fit:cover;border-radius:8px;border:1px solid var(--line-strong)}
 #profile-photo-controls{padding:1.25rem 0;display:grid;gap:.7rem}
 .settings-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+.avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+.express-area-row{display:flex;align-items:center;flex-wrap:wrap;gap:.8rem;margin:.6rem 0}.express-area-row .express-area{margin:0;min-width:180px}.express-area-row input[type=number]{width:90px}.express-capacity{padding-left:1.2rem;line-height:1.8}

@@ -15,6 +15,7 @@ import * as account from './routes/account.js';
 import * as projects from './routes/projects.js';
 import * as notifications from './routes/notifications.js';
 import * as users from './routes/users.js';
+import * as areas from './routes/areas.js';
 import * as announcements from './routes/announcements.js';
 import * as userManagement from './routes/user-management.js';
 import { preview } from './lib/identity.js';
@@ -64,6 +65,8 @@ router.put('/api/account/password', account.password, { auth: 'any' });
 router.get('/api/notifications', notifications.list, { auth: 'any' });
 router.post('/api/notifications/clear', notifications.clear, { auth: 'any' });
 router.get('/api/users', users.list, { auth: 'admin' });
+router.get('/api/admin/areas', areas.list, { auth: 'admin' });
+router.post('/api/admin/areas', areas.create, { auth: 'admin' });
 
 // Anuncios: lectura para ambos roles, creación exclusiva del administrador.
 router.get('/api/announcements', announcements.list, { auth: 'any' });

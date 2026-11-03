@@ -104,3 +104,5 @@ export const Account = {
  update: body => request('PUT','/api/account',{body}),
  password: body => request('PUT','/api/account/password',{body}),
 };
+
+export const WorkAreas = { list:()=>request('GET','/api/admin/areas'), create:nombre=>request('POST','/api/admin/areas',{body:{nombre}}) };

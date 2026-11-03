@@ -92,14 +92,14 @@ export async function create({ request, env, user, tz }) {
   const prioridad = b.prioridad ?? null;
   if (prioridad !== null && !['Alta','Media','Baja'].includes(prioridad)) throw new HttpError(400,'Prioridad no válida.');
 
-  const trabajadorId = intParam(b.trabajador_id, { min: 1 });
-  if (!trabajadorId) throw new HttpError(400, 'Selecciona un trabajador.');
-  const worker = await env.DB.prepare(
-    `SELECT T.ID_Trabajador FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado = T.ID_Empleado
-     LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado
-     WHERE T.ID_Trabajador = ? AND E.Estado = 'Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'`,
-  ).bind(trabajadorId).first();
-  if (!worker) throw new HttpError(400, 'El trabajador no existe o está inactivo.');
+  const rawIds = Array.isArray(b.trabajador_ids) ? b.trabajador_ids : [b.trabajador_id];
+  if (!rawIds.length || rawIds.length > 50) throw new HttpError(400, 'Selecciona entre 1 y 50 trabajadores.');
+  const workerIds = rawIds.map(v => { const n=Number(v); return Number.isSafeInteger(n)&&n>0?n:null; });
+  if(workerIds.some(x=>x===null)||new Set(workerIds).size!==workerIds.length)throw new HttpError(400,'Trabajadores no válidos o duplicados.');
+  for(const trabajadorId of workerIds){
+   const worker=await env.DB.prepare(`SELECT T.ID_Trabajador FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado=T.ID_Empleado LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado WHERE T.ID_Trabajador=? AND E.Estado='Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'`).bind(trabajadorId).first();
+   if(!worker)throw new HttpError(400,'Un trabajador no existe o está inactivo.');
+  }
 
   const descripcion = text(b.descripcion, { field: 'La descripción', max: 500 });
   const entrega = normalizeDateTime(b.fecha_entrega);
@@ -122,14 +122,15 @@ export async function create({ request, env, user, tz }) {
     throw new HttpError(400, 'Selecciona o crea un proyecto.');
   }
 
-  const statements = [env.DB.prepare(
-    `INSERT INTO Tareas (ID_Trabajador, ID_Administrador_Asignador, ID_Proyecto, Fecha, Fecha_Inicio, Fecha_Entrega, Descripcion_Tarea)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(trabajadorId, user.id, proyectoId, ahora.fecha, inicio, entrega, descripcion),
-    env.DB.prepare('UPDATE Tareas_Detalle SET Prioridad=? WHERE ID_Tarea=last_insert_rowid()').bind(prioridad)];
-  const [res] = await env.DB.batch(statements);
-  const task = await loadTask(env.DB, res.meta.last_row_id, user);
-  return json({ message: 'Tarea creada.', task: withPriority(task, ahora.fechaHora) }, 201);
+  const statements=[];
+  for(const trabajadorId of workerIds){
+    statements.push(env.DB.prepare(`INSERT INTO Tareas (ID_Trabajador,ID_Administrador_Asignador,ID_Proyecto,Fecha,Fecha_Inicio,Fecha_Entrega,Descripcion_Tarea)
+      VALUES ((SELECT T.ID_Trabajador FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado=T.ID_Empleado LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado WHERE T.ID_Trabajador=? AND E.Estado='Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'),?,?,?,?,?,?)`).bind(trabajadorId,user.id,proyectoId,ahora.fecha,inicio,entrega,descripcion));
+    statements.push(env.DB.prepare('UPDATE Tareas_Detalle SET Prioridad=? WHERE ID_Tarea=last_insert_rowid()').bind(prioridad));
+  }
+  let results;try{results=await env.DB.batch(statements);}catch(err){if(String(err).includes('NOT NULL constraint failed: Tareas.ID_Trabajador'))throw new HttpError(409,'Un trabajador dejó de estar activo. Actualiza la selección.');throw err;}
+  const task=await loadTask(env.DB,results[0].meta.last_row_id,user);
+  return json({message:workerIds.length===1?'Tarea creada.':`${workerIds.length} tareas creadas.`,task:withPriority(task,ahora.fechaHora),created_count:workerIds.length},201);
 }
 
 export async function updateStatus({ request, env, user, params, tz }) {

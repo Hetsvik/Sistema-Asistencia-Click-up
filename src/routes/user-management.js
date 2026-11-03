@@ -5,6 +5,7 @@ import { ACCOUNT_TYPES } from '../lib/accounts.js';
 import { validateSchedule, readSchedule, scheduleStatement } from '../lib/work-schedule.js';
 import { identityFields,corporateEmail } from '../lib/identity.js';
 import { nowLocal } from '../lib/dates.js';
+import { validateArea } from './areas.js';
 
 const ALL_BASE = `SELECT E.ID_Empleado AS id, E.Nombre_Completo AS nombre, E.Correo AS correo, E.Telefono AS telefono,
  E.Estado AS estado, 'admin' AS rol, A.Codigo_Administrador AS codigo, A.PIN_Acceso AS pin
@@ -17,8 +18,8 @@ const ALL_BASE = `SELECT E.ID_Empleado AS id, E.Nombre_Completo AS nombre, E.Cor
  LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado
  WHERE COALESCE(C.Rol,CASE WHEN EXISTS(SELECT 1 FROM Administrador A WHERE A.ID_Empleado=E.ID_Empleado)
  THEN 'admin' ELSE 'trabajador' END)='trabajador'`;
-const ALL=`SELECT B.*,I.Nombres AS nombres,I.Apellido_Paterno AS apellido_paterno,I.Apellido_Materno AS apellido_materno,I.Correo_Personal AS correo_personal,I.Correo_Corporativo AS correo_corporativo,I.Revisar_Nombre AS revisar_nombre,I.Requiere_Clave AS requiere_clave FROM (${ALL_BASE}) B LEFT JOIN Identidad_Usuario I ON I.ID_Empleado=B.id`;
-const PUBLIC = 'id,nombre,correo,telefono,estado,rol,codigo,nombres,apellido_paterno,apellido_materno,correo_personal,correo_corporativo,revisar_nombre,requiere_clave';
+const ALL=`SELECT B.*,I.Nombres AS nombres,I.Apellido_Paterno AS apellido_paterno,I.Apellido_Materno AS apellido_materno,I.Correo_Personal AS correo_personal,I.Correo_Corporativo AS correo_corporativo,I.Revisar_Nombre AS revisar_nombre,I.Requiere_Clave AS requiere_clave,EA.ID_Area AS area_id,AT.Nombre AS area FROM (${ALL_BASE}) B LEFT JOIN Identidad_Usuario I ON I.ID_Empleado=B.id LEFT JOIN Empleados_Area EA ON EA.ID_Empleado=B.id LEFT JOIN Areas_Trabajo AT ON AT.ID_Area=EA.ID_Area`;
+const PUBLIC = 'id,nombre,correo,telefono,estado,rol,codigo,nombres,apellido_paterno,apellido_materno,correo_personal,correo_corporativo,revisar_nombre,requiere_clave,area_id,area';
 const role = (v) => { if (!Object.hasOwn(ACCOUNT_TYPES, v)) throw new HttpError(400, 'Rol no válido.'); return v; };
 const idOf = (params) => intParam(params.id, { min: 1 });
 
@@ -79,6 +80,7 @@ export async function create({ env, request }) {
   const body=await readJson(request);
   const horario=Object.hasOwn(body,'horario')?validateSchedule(body.horario):null;
   const f = await fields(env.DB,body,0,{creating:true});
+  const areaId=await validateArea(env.DB,body.area_id);
   const a = ACCOUNT_TYPES[f.rol];
   const codigo = (f.rol === 'admin' ? 'AD' : 'EM') + crypto.randomUUID().replaceAll('-','').slice(0,12).toUpperCase();
   const pin = await hashPin(f.pin);
@@ -93,14 +95,16 @@ export async function create({ env, request }) {
   if(horario!==null)stmts.push(env.DB.prepare(`INSERT INTO Horarios_Laborales(ID_Empleado,Horario_JSON,Actualizado_En)
     SELECT ID_Empleado,?,? FROM ${a.table} WHERE ${a.code}=?`).bind(JSON.stringify(horario),nowLocal('America/Lima').fechaHora,codigo));
   stmts.push(env.DB.prepare(`INSERT INTO Identidad_Usuario(ID_Empleado,Nombres,Apellido_Paterno,Apellido_Materno,Correo_Personal,Correo_Corporativo) SELECT ID_Empleado,?,?,?,?,? FROM ${a.table} WHERE ${a.code}=?`).bind(f.names,f.paternal,f.maternal,f.personal,f.corporate,codigo));
+  if(areaId!==undefined)stmts.push(env.DB.prepare(`INSERT INTO Empleados_Area(ID_Empleado,ID_Area) SELECT ID_Empleado,? FROM ${a.table} WHERE ${a.code}=?`).bind(areaId,codigo));
   const r=await batch(env.DB,stmts);
-  return json({ user: { horario, zona_horaria:'America/Lima', id:r[0].meta.last_row_id, correo_corporativo:f.corporate,nombres:f.names,apellido_paterno:f.paternal,apellido_materno:f.maternal,correo_personal:f.personal, nombre:f.nombre, correo:f.correo, telefono:f.telefono, rol:f.rol, estado:'Activo', codigo } },201);
+  return json({ user: { horario, zona_horaria:'America/Lima', id:r[0].meta.last_row_id, area_id:areaId??null, correo_corporativo:f.corporate,nombres:f.names,apellido_paterno:f.paternal,apellido_materno:f.maternal,correo_personal:f.personal, nombre:f.nombre, correo:f.correo, telefono:f.telefono, rol:f.rol, estado:'Activo', codigo } },201);
 }
 export async function update({ env, params, request, user }) {
   const id=idOf(params), current=await getAccount(env.DB,id);
   const body=await readJson(request);
   const horario=Object.hasOwn(body,'horario')?validateSchedule(body.horario):undefined;
   const f=await fields(env.DB,body,id);
+  const areaId=await validateArea(env.DB,body.area_id);
   if (id===user.empleado_id && f.rol!==current.rol) throw new HttpError(409,'No puedes cambiar tu propio rol.');
   const pin=f.pin ? await hashPin(f.pin) : current.pin;
   const invalidate=Boolean(f.pin) || f.rol!==current.rol || f.corporate!==current.correo_corporativo;
@@ -122,6 +126,7 @@ export async function update({ env, params, request, user }) {
   }
   if(horario!==undefined)stmts.push(scheduleStatement(env.DB,id,horario,nowLocal('America/Lima').fechaHora));
   stmts.push(env.DB.prepare(`UPDATE Identidad_Usuario SET Nombres=?,Apellido_Paterno=?,Apellido_Materno=?,Correo_Personal=?,Correo_Corporativo=?,Revisar_Nombre=0,Requiere_Clave=CASE WHEN ? THEN 0 ELSE Requiere_Clave END WHERE ID_Empleado=?`).bind(f.names,f.paternal,f.maternal,f.personal,f.corporate,f.pin?1:0,id));
+  if(areaId!==undefined)stmts.push(env.DB.prepare('INSERT INTO Empleados_Area(ID_Empleado,ID_Area) VALUES(?,?) ON CONFLICT(ID_Empleado) DO UPDATE SET ID_Area=excluded.ID_Area').bind(id,areaId));
   await batch(env.DB,stmts);
   const { pin:secret,...safe }=await getAccount(env.DB,id);
   return json({ user:{...safe,horario:await readSchedule(env.DB,id),zona_horaria:'America/Lima'}, reauthenticate:id===user.empleado_id && invalidate });

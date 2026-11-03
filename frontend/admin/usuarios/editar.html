@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<script src="/static/670d113652006bec/js/theme-init.js"></script>
+<script src="/static/1ccc1b056f81706d/js/theme-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#080808">
@@ -11,8 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:wght@500;600;700&amp;display=swap">
-<link rel="stylesheet" href="/static/670d113652006bec/css/styles.css">
-<link rel="stylesheet" href="/static/670d113652006bec/css/modulos.css">
+<link rel="stylesheet" href="/static/1ccc1b056f81706d/css/styles.css">
+<link rel="stylesheet" href="/static/1ccc1b056f81706d/css/modulos.css">
 </head>
 <body data-role="admin" class="is-loading module-page">
 <noscript><p>Esta aplicación necesita JavaScript habilitado.</p></noscript>
@@ -36,6 +36,7 @@
  <div class="form-field"><label for="user-email">Correo personal (opcional)</label><input class="input plain" id="user-email" name="correo_personal" type="email" maxlength="254" autocomplete="email"></div>
  <div class="form-field"><label for="user-password">Contraseña</label><input class="input plain" id="user-password" name="pin" type="password" minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="password-help" ><small id="password-help" class="field-help">Deja la contraseña vacía para conservar la actual.</small></div>
  <div class="form-field"><label for="user-role">Rol <span aria-hidden="true">*</span></label><select class="input plain" id="user-role" name="rol" required><option value="trabajador">Trabajador</option><option value="admin">Administrador</option></select></div>
+ <div class="form-field"><label for="user-area">Área de trabajo <span aria-hidden="true">*</span></label><select class="input plain" id="user-area" name="area_id" required><option value="">Selecciona un área…</option></select><button type="button" class="btn outline sm" id="area-toggle">+ Crear área</button><div id="area-create" hidden><label for="area-name">Nombre de la nueva área</label><input class="input plain" id="area-name" maxlength="80"><button type="button" class="btn outline sm" id="area-save">Guardar área</button></div><small class="field-help">Los usuarios anteriores no tienen área asignada hasta que se editen.</small></div>
  <div class="form-field"><label for="user-phone">Teléfono <span class="optional">(opcional)</span></label><input class="input plain" id="user-phone" name="telefono" type="tel" maxlength="32" autocomplete="tel"></div>
  <section class="work-schedule" id="work-schedule" aria-label="Horario de trabajo"></section>
  </fieldset>
@@ -43,5 +44,5 @@
  <div class="module-actions"><button class="btn" type="submit" id="user-submit" disabled>Guardar Cambios</button><a class="btn outline" href="/admin/usuarios">Cancelar</a></div>
 </form>
 </main></div>
-<script type="module" src="/static/670d113652006bec/js/pages/usuario-form.js"></script>
+<script type="module" src="/static/1ccc1b056f81706d/js/pages/usuario-form.js"></script>
 </body></html>

@@ -357,3 +357,9 @@ html[data-theme=light] .auth-copy h1{background:none;color:var(--gold-light)}
 .deadline-alert strong{display:block;font-size:15px}.deadline-alert p{margin:5px 0;overflow-wrap:anywhere}.deadline-alert a{display:block;margin-top:7px;color:#174d91;font-weight:700;text-decoration:underline}.deadline-close{position:absolute;right:8px;top:6px;background:transparent;color:#1e293b;border:0;font-size:25px;cursor:pointer;width:32px;height:32px}.deadline-close:focus-visible,.deadline-alert a:focus-visible{outline:3px solid #175cd3;outline-offset:2px}
 /* Menú contextual de tareas, disponible solo para administración. */
 .task .act{display:flex;align-items:center;gap:8px}.task-menu-wrap{position:relative}.task-menu-toggle{min-width:36px;min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-size:23px;line-height:1;cursor:pointer}.task-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:128px;padding:5px;border:1px solid var(--line);border-radius:9px;background:var(--surface);box-shadow:0 8px 24px #0005}.task-menu[hidden]{display:none}.task-menu button{display:block;width:100%;text-align:left;padding:10px;border:0;border-radius:6px;background:transparent;color:var(--text);cursor:pointer}.task-menu button:hover,.task-menu button:focus-visible{background:var(--bg-2)}
+/* Formulario de asignación: más espacio sin perder adaptación móvil. */
+dialog.modal.task-create-wide{width:min(96vw,900px)}
+.chosen-workers{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem}
+.chosen-worker{display:inline-flex;align-items:center;gap:.5rem;border:1px solid var(--line-strong);border-radius:999px;padding:.35rem .7rem;color:var(--text)}
+.chosen-worker button{border:0;background:transparent;color:inherit;font-size:1.1rem;cursor:pointer}
+#area-create:not([hidden]){display:grid;gap:.5rem;margin-top:.5rem}

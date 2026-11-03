@@ -7,14 +7,14 @@ import { enableMenuKeyboard, message, pager, peruDateTime } from '../page-tools.
 async function main() {
   await initPage({role:document.body.dataset.role,page:'anuncios'});
   enableMenuKeyboard();
-  const route=routeState({page:1,limit:20,q:'',sort:'fecha',order:'desc'});
+  const route=routeState({page:1,limit:10,q:'',sort:'fecha',order:'desc'});
   let sort='fecha',order='desc',sequence=0;
   const restore=()=>{const s=route.read();sort=s.sort;order=s.order;$('#announcement-search').value=s.q;return s;};
   const load=async(page=1)=>{
     const seq=++sequence;
     message(null); $('#announcement-table').setAttribute('aria-busy','true');
     try {
-      const data=await Announcements.list({q:$('#announcement-search').value.trim(),sort,order,page,limit:route.read().limit});
+      const data=await Announcements.list({q:$('#announcement-search').value.trim(),sort,order,page,limit:10});
       if(seq!==sequence) return;
       $('#announcement-list').innerHTML=data.announcements.length ? data.announcements.map(a=>{
         const long=a.motivo.length>180;
@@ -29,7 +29,7 @@ async function main() {
         $('[data-arrow]',button).textContent=selected?(order==='asc'?'↑':'↓'):'⇅';
         button.setAttribute('aria-label',`Ordenar por ${button.dataset.sort==='nombre'?'nombre':'fecha'} ${selected && order==='asc'?'de mayor a menor':'de menor a mayor'}`);
       });
-      route.write({page:data.page,limit:data.limit,q:$('#announcement-search').value.trim(),sort,order});pager(data,load,{onSize:limit=>{route.write({limit,page:1});load();}});
+      route.write({page:data.page,limit:null,q:$('#announcement-search').value.trim(),sort,order});pager(data,load,{simple:true});
     } catch(err) { if(seq===sequence) {message(err);$('#announcement-list').innerHTML='<tr><td colspan="2">No se pudieron cargar los anuncios. Cambia la búsqueda para volver a intentar.</td></tr>';$('#pagination').replaceChildren();} }
     finally { if(seq===sequence) $('#announcement-table').setAttribute('aria-busy','false'); }
   };

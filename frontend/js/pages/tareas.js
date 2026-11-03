@@ -1,10 +1,9 @@
 import {routeState} from '../list-state.js';
 import {pager} from '../page-tools.js';
-import {catalogPicker} from '../catalog-picker.js';
 import {createPoll} from '../polling.js';
 import {renderFiles,fileAction} from '../file-viewer.js';
 import { initAttachments } from '../attachments.js';
-import { Catalog, Tasks } from '../api.js';
+import { Catalog, Tasks, WorkAreas } from '../api.js';
 import { initDateTimePicker } from '../date-time-picker.js';
 import { ESTADOS, POLL_COMMENTS_MS } from '../config.js';
 import { initPage } from '../layout.js';
@@ -15,7 +14,7 @@ const isAdmin = role === 'admin';
 const user = await initPage({ role, page: 'inicio' });
 
 const list = $('#task-list');
-const route=routeState({page:1,limit:20,estado:'',q:''});
+const route=routeState({page:1,limit:10,estado:'',q:''});
 let page=1,sequence=0;const filters={estado:'',q:''};
 const restore=()=>{const v=route.read();page=v.page;filters.estado=v.estado;filters.q=v.q;$('#task-search').value=v.q;$$('[data-estado]').forEach(b=>b.classList.toggle('is-active',b.dataset.estado===v.estado));};
 const nav=document.createElement('nav');list.after(nav);
@@ -47,7 +46,7 @@ function render() {
 
 async function load(next=page){
  const seq=++sequence;list.setAttribute('aria-busy','true');
- try{const data=await Tasks.list({estado:filters.estado,q:filters.q,page:next,limit:route.read().limit});if(seq!==sequence)return;tasks=data.tasks;page=data.page;render();route.write({page,limit:data.limit,...filters});pager(data,load,{element:nav,onSize:limit=>{route.write({limit,page:1});load(1);}});}
+ try{const data=await Tasks.list({estado:filters.estado,q:filters.q,page:next,limit:10});if(seq!==sequence)return;tasks=data.tasks;page=data.page;render();route.write({page,limit:null,...filters});pager(data,load,{element:nav,simple:true});}
  catch(err){if(seq===sequence)toast(err.message,'error');}
  finally{if(seq===sequence)list.setAttribute('aria-busy','false');}
 }
@@ -213,38 +212,48 @@ async function openDetail(id) {
 
 // ---------- Crear tarea (admin) ----------
 async function openCreate() {
-  const pickers=[];
-  const modal=openModal({title:'Añadir tarea',onClose:()=>pickers.forEach(p=>p.destroy()),html:`<form id="new-task" class="form-grid">
-    <label class="full">Buscar trabajador<input type="search" class="input plain" id="pick-worker" placeholder="Nombre o código"></label><label class="full">Trabajador<select class="input plain" name="trabajador_id" required><option value="">Selecciona…</option></select></label>
-    <label class="full">Buscar proyecto<input type="search" class="input plain" id="pick-project" placeholder="Nombre, área o descripción"></label><label class="full">Proyecto<select class="input plain" name="proyecto_id" required><option value="">Selecciona…</option></select></label>
+  let closed=false, workerSerial=0, projectSerial=0;
+  const chosen=new Map(),workers=new Map();
+  const modal=openModal({title:'Añadir tarea',wide:true,onClose:()=>{closed=true;},html:`<form id="new-task" class="form-grid">
+    <label class="full">Área de trabajo<select class="input plain" id="pick-area"><option value="">Selecciona un área…</option></select></label>
+    <label>Buscar trabajador<input type="search" class="input plain" id="pick-worker" placeholder="Nombre o código" disabled></label>
+    <label>Trabajador<select class="input plain" id="task-worker" disabled><option value="">Selecciona un área primero…</option></select></label>
+    <div class="full"><button type="button" class="btn outline sm" id="add-worker" disabled>+ Añadir trabajador</button><p class="muted" id="worker-hint" role="status">Selecciona un área para ver sus trabajadores.</p><div id="chosen-workers" class="chosen-workers"></div></div>
+    <label>Buscar proyecto<input type="search" class="input plain" id="pick-project" placeholder="Nombre, área o descripción"></label>
+    <label>Proyecto<select class="input plain" name="proyecto_id" required><option value="">Selecciona un proyecto…</option></select></label>
+    <p class="muted full" id="project-hint" role="status"></p>
     <a class="project-form-link full" href="/admin/proyectos/nuevo">+ Crear un proyecto antes de asignar la tarea</a>
     <label class="full">Descripción<textarea class="input plain" name="descripcion" rows="3" maxlength="500" required></textarea></label>
     <label class="full">Prioridad<select class="input plain" name="prioridad" required><option>Alta</option><option selected>Media</option><option>Baja</option></select></label>
     <div id="task-datetime" class="full"></div><p class="form-message is-error full" id="f-error" hidden role="alert"></p>
-    <div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button><button type="submit" class="btn">Crear tarea</button></div></form>`});
+    <p class="muted full">Se creará una tarea independiente por trabajador, con su propio seguimiento.</p>
+    <div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button><button type="submit" class="btn">Crear tareas</button></div></form>`});
+  modal.el.classList.add('task-create-wide');
   const form=$('#new-task',modal.el),picker=initDateTimePicker($('#task-datetime',form),{label:'Fecha y hora de entrega'});
-  pickers.push(catalogPicker({select:form.elements.trabajador_id,input:$('#pick-worker',form),fetchPage:Catalog.users,key:'users',label:u=>u.nombre+' · '+u.codigo}),catalogPicker({select:form.elements.proyecto_id,input:$('#pick-project',form),fetchPage:Catalog.projects,key:'projects',label:p=>p.nombre+' · '+p.area}));
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(form));
-    const err = $('#f-error', modal.el);
-    err.hidden = true;
-    const body = {
-      trabajador_id: Number(f.trabajador_id) || null,
-      descripcion: f.descripcion,
-      fecha_entrega: picker.getValue(),
-      prioridad: f.prioridad,
-    };
-    body.proyecto_id = Number(f.proyecto_id) || null;
-
-    await withBusy($('[type=submit]', form), async () => {
-      try {
-        await Tasks.create(body);
-        modal.close();
-        toast('Tarea creada.', 'success');
-        load();
-      } catch (e2) { err.textContent = e2.message; err.hidden = false; }
-    });
+  const area=$('#pick-area',form),worker=$('#task-worker',form),workerSearch=$('#pick-worker',form),projectSearch=$('#pick-project',form),project=form.elements.proyecto_id,add=$('#add-worker',form),hint=$('#worker-hint',form),error=$('#f-error',form);
+  const showError=e=>{error.textContent=e.message||e;error.hidden=false;};
+  const renderChosen=()=>{const box=$('#chosen-workers',form);box.innerHTML=[...chosen.values()].map(w=>`<span class="chosen-worker">${esc(w.nombre)} · ${esc(w.area)} <button type="button" data-remove-worker="${w.id}" aria-label="Quitar ${esc(w.nombre)}">×</button></span>`).join('');};
+  $('#chosen-workers',form).addEventListener('click',e=>{const b=e.target.closest('[data-remove-worker]');if(b){chosen.delete(Number(b.dataset.removeWorker));renderChosen();}});
+  async function loadWorkers(){
+   const seq=++workerSerial;workers.clear();worker.disabled=true;add.disabled=true;worker.replaceChildren(new Option('Selecciona un trabajador…',''));
+   if(!area.value){workerSearch.disabled=true;hint.textContent='Selecciona un área para ver sus trabajadores.';return;}
+   workerSearch.disabled=false;hint.textContent='Cargando trabajadores…';
+   try{const d=await Catalog.users({area:area.value,q:workerSearch.value.trim(),page:1,limit:100});if(closed||seq!==workerSerial)return;
+    for(const w of d.users){workers.set(w.id,w);worker.add(new Option(`${w.nombre} · ${w.codigo}`,String(w.id)));}
+    worker.disabled=false;hint.textContent=d.has_more?'Se muestran los primeros 100. Escribe un nombre o código para encontrar otros.':d.users.length?'Selecciona un trabajador y añádelo.':'No hay trabajadores en esta área para la búsqueda indicada.';
+   }catch(e){if(!closed&&seq===workerSerial){hint.textContent='No se pudieron cargar los trabajadores.';showError(e);}}
+  }
+  area.onchange=()=>{workerSearch.value='';loadWorkers();};workerSearch.addEventListener('input',debounce(loadWorkers,300));worker.onchange=()=>{add.disabled=!worker.value;};
+  add.onclick=()=>{const w=workers.get(Number(worker.value));if(!w)return;if(chosen.has(w.id))return showError('Ese trabajador ya fue añadido.');if(chosen.size>=50)return showError('Puedes asignar hasta 50 trabajadores por vez.');error.hidden=true;chosen.set(w.id,{...w,area:area.selectedOptions[0].textContent});renderChosen();area.value='';workerSearch.value='';loadWorkers();area.focus();};
+  async function loadProjects(){const seq=++projectSerial;try{const d=await Catalog.projects({q:projectSearch.value.trim(),page:1,limit:100});if(closed||seq!==projectSerial)return;const current=project.value,old=project.selectedOptions[0]?.textContent;project.replaceChildren(new Option('Selecciona un proyecto…',''),...d.projects.map(p=>new Option(`${p.nombre} · ${p.area}`,String(p.id))));if(current&&!d.projects.some(p=>String(p.id)===current))project.add(new Option(old,current));project.value=current;$('#project-hint',form).textContent=d.has_more?'Se muestran los primeros 100. Escribe para encontrar otros proyectos.':'';}catch(e){if(!closed&&seq===projectSerial)showError(e);}}
+  projectSearch.addEventListener('input',debounce(loadProjects,300));
+  try{const d=await WorkAreas.list();if(closed)return;for(const a of d.areas)area.add(new Option(a.nombre,String(a.id)));area.add(new Option('Sin área asignada (usuarios anteriores)','sin-area'));if(d.has_more)showError('Hay demasiadas áreas para mostrarlas. Contacta al soporte.');}catch(e){showError(e);}
+  loadProjects();
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();error.hidden=true;if(!chosen.size)return showError('Añade al menos un trabajador.');
+    let entrega;try{entrega=picker.getValue();}catch(err){return showError(err);}
+    const body={trabajador_ids:[...chosen.keys()],descripcion:form.elements.descripcion.value,fecha_entrega:entrega,prioridad:form.elements.prioridad.value,proyecto_id:Number(project.value)||null};
+    await withBusy($('[type=submit]',form),async()=>{try{const r=await Tasks.create(body);modal.close();toast(r.message,'success');await load();}catch(err){showError(err);}});
   });
 }
 $('#btn-add')?.addEventListener('click', openCreate);

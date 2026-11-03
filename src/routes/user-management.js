@@ -18,8 +18,8 @@ const ALL_BASE = `SELECT E.ID_Empleado AS id, E.Nombre_Completo AS nombre, E.Cor
  LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado
  WHERE COALESCE(C.Rol,CASE WHEN EXISTS(SELECT 1 FROM Administrador A WHERE A.ID_Empleado=E.ID_Empleado)
  THEN 'admin' ELSE 'trabajador' END)='trabajador'`;
-const ALL=`SELECT B.*,I.Nombres AS nombres,I.Apellido_Paterno AS apellido_paterno,I.Apellido_Materno AS apellido_materno,I.Correo_Personal AS correo_personal,I.Correo_Corporativo AS correo_corporativo,I.Revisar_Nombre AS revisar_nombre,I.Requiere_Clave AS requiere_clave,EA.ID_Area AS area_id,AT.Nombre AS area FROM (${ALL_BASE}) B LEFT JOIN Identidad_Usuario I ON I.ID_Empleado=B.id LEFT JOIN Empleados_Area EA ON EA.ID_Empleado=B.id LEFT JOIN Areas_Trabajo AT ON AT.ID_Area=EA.ID_Area`;
-const PUBLIC = 'id,nombre,correo,telefono,estado,rol,codigo,nombres,apellido_paterno,apellido_materno,correo_personal,correo_corporativo,revisar_nombre,requiere_clave,area_id,area';
+const ALL=`SELECT B.*,I.Nombres AS nombres,I.Apellido_Paterno AS apellido_paterno,I.Apellido_Materno AS apellido_materno,I.Correo_Personal AS correo_personal,I.Correo_Corporativo AS correo_corporativo,I.Revisar_Nombre AS revisar_nombre,I.Requiere_Clave AS requiere_clave,EA.ID_Area AS area_id,AT.Nombre AS area,COALESCE(EC.Cargo,TW.Rol_Cargo) AS cargo,EXISTS(SELECT 1 FROM Fotos_Usuario FU WHERE FU.ID_Empleado=B.id) AS tiene_foto FROM (${ALL_BASE}) B LEFT JOIN Identidad_Usuario I ON I.ID_Empleado=B.id LEFT JOIN Empleados_Area EA ON EA.ID_Empleado=B.id LEFT JOIN Areas_Trabajo AT ON AT.ID_Area=EA.ID_Area LEFT JOIN Empleados_Cargo EC ON EC.ID_Empleado=B.id LEFT JOIN Trabajadores TW ON TW.ID_Empleado=B.id`;
+const PUBLIC = 'id,nombre,correo,telefono,estado,rol,codigo,nombres,apellido_paterno,apellido_materno,correo_personal,correo_corporativo,revisar_nombre,requiere_clave,area_id,area,cargo,tiene_foto';
 const role = (v) => { if (!Object.hasOwn(ACCOUNT_TYPES, v)) throw new HttpError(400, 'Rol no válido.'); return v; };
 const idOf = (params) => intParam(params.id, { min: 1 });
 
@@ -34,13 +34,14 @@ async function fields(db, body, id = 0, { creating = false } = {}) {
   const telefono = text(body.telefono, { field: 'Teléfono', max: 32, required: false });
   if (telefono && !/^[+\d\s().-]{5,32}$/.test(telefono)) throw new HttpError(400, 'Teléfono no válido.');
   const rol = role(body.rol);
+  const cargo=Object.hasOwn(body,'cargo')?text(body.cargo,{field:'El cargo',max:100,required:false}):undefined;
   const pin = body.pin;
   if ((creating || (pin !== undefined && pin !== '')) && (typeof pin !== 'string' || pin.length < 8 || pin.length > 128 || !pin.trim())) {
     throw new HttpError(400, 'La contraseña debe tener entre 8 y 128 caracteres.');
   }
   const existing = await db.prepare('SELECT ID_Empleado FROM Empleados WHERE lower(Correo)=? AND ID_Empleado<>? LIMIT 1').bind(correo,id).first();
   if (correo && existing) throw new HttpError(409, 'Ese correo ya está registrado.');
-  return { ...identity, nombre, correo, telefono, rol, pin: pin || null, corporate:await corporateEmail(db,identity.names,rol,id) };
+  return { ...identity, nombre, correo, telefono, rol, cargo, pin: pin || null, corporate:await corporateEmail(db,identity.names,rol,id) };
 }
 async function batch(db, stmts) {
   try { return await db.batch(stmts); }
@@ -96,6 +97,7 @@ export async function create({ env, request }) {
     SELECT ID_Empleado,?,? FROM ${a.table} WHERE ${a.code}=?`).bind(JSON.stringify(horario),nowLocal('America/Lima').fechaHora,codigo));
   stmts.push(env.DB.prepare(`INSERT INTO Identidad_Usuario(ID_Empleado,Nombres,Apellido_Paterno,Apellido_Materno,Correo_Personal,Correo_Corporativo) SELECT ID_Empleado,?,?,?,?,? FROM ${a.table} WHERE ${a.code}=?`).bind(f.names,f.paternal,f.maternal,f.personal,f.corporate,codigo));
   if(areaId!==undefined)stmts.push(env.DB.prepare(`INSERT INTO Empleados_Area(ID_Empleado,ID_Area) SELECT ID_Empleado,? FROM ${a.table} WHERE ${a.code}=?`).bind(areaId,codigo));
+  if(f.cargo!==undefined&&f.cargo!==null)stmts.push(env.DB.prepare(`INSERT INTO Empleados_Cargo(ID_Empleado,Cargo) SELECT ID_Empleado,? FROM ${a.table} WHERE ${a.code}=?`).bind(f.cargo,codigo));
   const r=await batch(env.DB,stmts);
   return json({ user: { horario, zona_horaria:'America/Lima', id:r[0].meta.last_row_id, area_id:areaId??null, correo_corporativo:f.corporate,nombres:f.names,apellido_paterno:f.paternal,apellido_materno:f.maternal,correo_personal:f.personal, nombre:f.nombre, correo:f.correo, telefono:f.telefono, rol:f.rol, estado:'Activo', codigo } },201);
 }
@@ -126,6 +128,7 @@ export async function update({ env, params, request, user }) {
   }
   if(horario!==undefined)stmts.push(scheduleStatement(env.DB,id,horario,nowLocal('America/Lima').fechaHora));
   stmts.push(env.DB.prepare(`UPDATE Identidad_Usuario SET Nombres=?,Apellido_Paterno=?,Apellido_Materno=?,Correo_Personal=?,Correo_Corporativo=?,Revisar_Nombre=0,Requiere_Clave=CASE WHEN ? THEN 0 ELSE Requiere_Clave END WHERE ID_Empleado=?`).bind(f.names,f.paternal,f.maternal,f.personal,f.corporate,f.pin?1:0,id));
+  if(f.cargo!==undefined)stmts.push(env.DB.prepare('INSERT INTO Empleados_Cargo(ID_Empleado,Cargo) VALUES(?,?) ON CONFLICT(ID_Empleado) DO UPDATE SET Cargo=excluded.Cargo').bind(id,f.cargo??''));
   if(areaId!==undefined)stmts.push(env.DB.prepare('INSERT INTO Empleados_Area(ID_Empleado,ID_Area) VALUES(?,?) ON CONFLICT(ID_Empleado) DO UPDATE SET ID_Area=excluded.ID_Area').bind(id,areaId));
   await batch(env.DB,stmts);
   const { pin:secret,...safe }=await getAccount(env.DB,id);

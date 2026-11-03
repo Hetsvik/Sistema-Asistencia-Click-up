@@ -5,7 +5,7 @@ import { limit } from '../lib/rate-limit.js';
 import { clearCookie } from '../lib/session.js';
 export async function detail({env,user}){
  const a=ACCOUNT_TYPES[user.rol];
- const profile=await env.DB.prepare(`SELECT E.Nombre_Completo AS nombre,I.Nombres AS nombres,I.Apellido_Paterno AS apellido_paterno,I.Apellido_Materno AS apellido_materno,I.Correo_Personal AS correo_personal,I.Correo_Corporativo AS correo_corporativo,I.Correo_Corporativo AS correo,E.Telefono AS telefono,${user.rol==='trabajador'?'A.Rol_Cargo':'NULL'} AS cargo FROM Empleados E JOIN ${a.table} A ON A.ID_Empleado=E.ID_Empleado JOIN Identidad_Usuario I ON I.ID_Empleado=E.ID_Empleado WHERE E.ID_Empleado=?`).bind(user.empleado_id).first();
+ const profile=await env.DB.prepare(`SELECT E.Nombre_Completo AS nombre,I.Nombres AS nombres,I.Apellido_Paterno AS apellido_paterno,I.Apellido_Materno AS apellido_materno,I.Correo_Personal AS correo_personal,I.Correo_Corporativo AS correo_corporativo,I.Correo_Corporativo AS correo,E.Telefono AS telefono,COALESCE(EC.Cargo,${user.rol==='trabajador'?'A.Rol_Cargo':'NULL'}) AS cargo,AT.Nombre AS area,EXISTS(SELECT 1 FROM Fotos_Usuario F WHERE F.ID_Empleado=E.ID_Empleado) AS tiene_foto FROM Empleados E JOIN ${a.table} A ON A.ID_Empleado=E.ID_Empleado JOIN Identidad_Usuario I ON I.ID_Empleado=E.ID_Empleado LEFT JOIN Empleados_Cargo EC ON EC.ID_Empleado=E.ID_Empleado LEFT JOIN Empleados_Area EA ON EA.ID_Empleado=E.ID_Empleado LEFT JOIN Areas_Trabajo AT ON AT.ID_Area=EA.ID_Area WHERE E.ID_Empleado=?`).bind(user.empleado_id).first();
  return json({profile:{...profile,codigo:user.codigo,rol:user.rol}});
 }
 export async function update({env,user,request}){

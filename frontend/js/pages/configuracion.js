@@ -1,3 +1,4 @@
+import { initProfilePhoto } from '../profile-photo.js';
 import { Account,Storage } from '../api.js';
 import { initPage } from '../layout.js';
 import { enableMenuKeyboard } from '../page-tools.js';
@@ -6,7 +7,8 @@ import { $,esc,icon,openModal,toast,withBusy } from '../ui.js';
 const user=await initPage({role:document.body.dataset.role,page:'configuracion'});enableMenuKeyboard();
 let profile;
 async function load(){
- try{profile=(await Account.get()).profile;$('#profile-info').innerHTML=`<div class="settings-profile"><div class="settings-identity"><div class="settings-avatar">${icon('user')}</div><div><h3>${esc(profile.nombre)}</h3><p>${esc(profile.correo||'Sin correo registrado')}</p><span class="badge">${profile.rol==='admin'?'Administrador':'Trabajador'}</span></div></div><dl><div><dt>Cargo</dt><dd>${esc(profile.cargo||(profile.rol==='admin'?'Administrador':'Sin cargo registrado'))}</dd></div><div><dt>Correo corporativo</dt><dd>${esc(profile.correo_corporativo)}</dd></div><div><dt>Teléfono</dt><dd>${esc(profile.telefono||'Sin registrar')}</dd></div><div><dt>Correo personal</dt><dd>${esc(profile.correo_personal||'Sin registrar')}</dd></div></dl></div>`;}
+ try{profile=(await Account.get()).profile;$('#profile-info').innerHTML=`<div class="settings-profile"><div class="settings-identity"><div class="settings-avatar">${profile.tiene_foto?`<img src="/api/user-photo/${user.empleado_id}?v=${Date.now()}" alt="Foto de perfil">`:icon('user')}</div><div><h3>${esc(profile.nombre)}</h3><p>${esc(profile.correo||'Sin correo registrado')}</p><span class="badge">${profile.rol==='admin'?'Administrador':'Trabajador'}</span></div></div><dl><div><dt>Cargo</dt><dd>${esc(profile.cargo||(profile.rol==='admin'?'Administrador':'Sin cargo registrado'))}</dd></div><div><dt>Área de trabajo</dt><dd>${esc(profile.area||'Sin área asignada')}</dd></div><div><dt>Correo corporativo</dt><dd>${esc(profile.correo_corporativo)}</dd></div><div><dt>Teléfono</dt><dd>${esc(profile.telefono||'Sin registrar')}</dd></div><div><dt>Correo personal</dt><dd>${esc(profile.correo_personal||'Sin registrar')}</dd></div></dl></div>`;
+ if(!document.getElementById('profile-photo-controls')){const box=document.createElement('div');box.id='profile-photo-controls';$('#profile-info').after(box);initProfilePhoto(box,user.empleado_id,profile.tiene_foto);}}
  catch(err){$('#profile-info').textContent=err.message;}
 }
 $('#edit-profile').onclick=()=>{
@@ -23,6 +25,7 @@ for(const id of ['pref-assignments','pref-status','pref-text','pref-theme'])$('#
 for(const link of document.querySelectorAll('.settings-nav a'))link.addEventListener('click',()=>{for(const a of document.querySelectorAll('.settings-nav a'))a.removeAttribute('aria-current');link.setAttribute('aria-current','location');});
 document.querySelector('.settings-nav a').setAttribute('aria-current','location');await load();
 
+document.addEventListener('erp:photo-changed',()=>load());
 document.addEventListener('erp:preferences',()=>{const p=readPreferences(user);$('#pref-theme').value=p.theme;$('#pref-text').value=p.text;$('#pref-assignments').checked=p.assignments;$('#pref-status').checked=p.status;});
 
 Storage.status().then(s=>{document.querySelector('#storage-badge').textContent=s.configured?'Binding R2 configurado':'Sin configurar';document.querySelector('#storage-status').textContent=s.configured?'Bucket privado. Máximo 5 archivos, 10 MiB cada uno y 25 MiB por envío. El primer envío confirmará el acceso real al bucket.':'El servidor aún no tiene el binding ATTACHMENTS. Contacta al administrador.';}).catch(e=>{document.querySelector('#storage-badge').textContent='No disponible';document.querySelector('#storage-status').textContent=e.message;});

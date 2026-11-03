@@ -106,3 +106,7 @@ export const Account = {
 };
 
 export const WorkAreas = { list:()=>request('GET','/api/admin/areas'), create:nombre=>request('POST','/api/admin/areas',{body:{nombre}}) };
+
+export const ExpressTasks={list:p=>request('GET','/api/express',{params:p}),get:id=>request('GET',`/api/express/${id}`),create:body=>request('POST','/api/express',{body}),accept:id=>request('POST',`/api/express/${id}/accept`,{body:{}}),cancel:id=>request('DELETE',`/api/express/${id}`)};
+
+export const Photo={upload:async(id,file)=>{const r=await fetch(`/api/user-photo/${encodeURIComponent(id)}`,{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'image/jpeg'},body:file});const d=await r.json().catch(()=>({}));if(!r.ok)throw new ApiError(r.status,d.detail||'No se pudo guardar la foto.');return d;},remove:id=>request('DELETE',`/api/user-photo/${encodeURIComponent(id)}`)};

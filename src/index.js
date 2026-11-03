@@ -16,6 +16,8 @@ import * as projects from './routes/projects.js';
 import * as notifications from './routes/notifications.js';
 import * as users from './routes/users.js';
 import * as areas from './routes/areas.js';
+import * as express from './routes/express.js';
+import * as photos from './routes/photos.js';
 import * as announcements from './routes/announcements.js';
 import * as userManagement from './routes/user-management.js';
 import { preview } from './lib/identity.js';
@@ -37,6 +39,18 @@ router.get('/api/attendance/today', attendance.today, { auth: 'trabajador' });
 router.post('/api/attendance/check-in', attendance.checkIn, { auth: 'trabajador' });
 router.put('/api/attendance/check-out', attendance.checkOut, { auth: 'trabajador' });
 router.get('/api/attendance', attendance.list, { auth: 'any' });
+
+// Fotos privadas: propia o acceso de administrador.
+router.get('/api/user-photo/:id',photos.get,{auth:'any'});
+router.put('/api/user-photo/:id',photos.put,{auth:'any'});
+router.delete('/api/user-photo/:id',photos.remove,{auth:'any'});
+
+// Tareas express
+router.get('/api/express',express.list,{auth:'any'});
+router.post('/api/express',express.create,{auth:'admin'});
+router.get('/api/express/:id',express.detail,{auth:'any'});
+router.post('/api/express/:id/accept',express.accept,{auth:'trabajador'});
+router.delete('/api/express/:id',express.cancel,{auth:'admin'});
 
 // Tareas
 router.get('/api/tasks', tasks.list, { auth: 'any' });
@@ -125,7 +139,7 @@ export async function handleApi(request, env) {
 export default {
   async scheduled(event,env,ctx) {
     if(event.cron === '* * * * *') ctx.waitUntil(generateDeadlineAlarms(env.DB,event.scheduledTime,env.TIMEZONE || DEFAULT_TZ));
-    else if(event.cron === '17 * * * *') ctx.waitUntil(Promise.all([attachments.cleanup(env),cleanupSecurity(env)]));
+    else if(event.cron === '17 * * * *') ctx.waitUntil(Promise.all([attachments.cleanup(env),cleanupSecurity(env),photos.cleanup(env)]));
   },
   async fetch(request, env) {
     if (new URL(request.url).pathname.startsWith('/api/')) {const start=performance.now(),response=await handleApi(request,env);response.headers.set('Server-Timing',`app;dur=${(performance.now()-start).toFixed(1)}`);return secureResponse(response);}

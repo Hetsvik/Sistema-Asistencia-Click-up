@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<script src="/static/1ccc1b056f81706d/js/theme-init.js"></script>
+<script src="/static/1d17bd5cf4afc374/js/theme-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#080808">
@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:wght@500;600;700&amp;display=swap">
-<link rel="stylesheet" href="/static/1ccc1b056f81706d/css/styles.css">
+<link rel="stylesheet" href="/static/1d17bd5cf4afc374/css/styles.css">
 </head>
 <body data-role="trabajador" class="is-loading">
 <noscript><p style="padding:2rem;color:#f3d98b">Esta aplicación necesita JavaScript habilitado.</p></noscript>
@@ -30,6 +30,8 @@
         <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
       </div>
     </header>
+    <nav class="task-tabs" aria-label="Tipos de tareas"><a id="tab-assigned">Tareas asignadas</a><a id="tab-express">Tareas express</a></nav>
+    <section id="assigned-panel">
     <div class="toolbar">
       <span></span>
       <div class="search grow"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="task-search" class="input" type="search" placeholder="Buscar tarea"></div>
@@ -38,8 +40,10 @@
       <button class="filter" id="btn-filter" type="button" aria-haspopup="true" aria-label="Filtrar por estado"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18l-7 8.5V20l-4-2v-5.5z"/></svg>Filtrar</button>
       <div class="filter-menu" id="filter-menu" hidden></div></div>
     <section id="task-list" aria-live="polite"><div class="empty-state"><strong>Cargando…</strong></div></section>
+    </section>
+    <section id="express-panel" hidden><div class="toolbar"><button class="btn" id="express-add" type="button" hidden>+ Añadir tarea express</button><div class="search grow"><input id="express-search" class="input" type="search" placeholder="Buscar tarea express"></div></div><div id="express-list" aria-live="polite"></div><nav id="express-pagination"></nav></section>
   </main>
 </div>
-<script type="module" src="/static/1ccc1b056f81706d/js/pages/tareas.js"></script>
+<script type="module" src="/static/1d17bd5cf4afc374/js/pages/tareas.js"></script>
 </body>
 </html>

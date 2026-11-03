@@ -1,3 +1,4 @@
+import { initExpress } from '../express.js';
 import {routeState} from '../list-state.js';
 import {pager} from '../page-tools.js';
 import {createPoll} from '../polling.js';
@@ -13,6 +14,11 @@ const role = document.body.dataset.role;
 const isAdmin = role === 'admin';
 const user = await initPage({ role, page: 'inicio' });
 
+const isExpress=new URLSearchParams(location.search).get('tab')==='express';
+const base=role==='admin'?'/admin/tareas':'/usuarios/tareas';
+$('#tab-assigned').href=base;$('#tab-express').href=base+'?tab=express';
+$(isExpress?'#tab-express':'#tab-assigned').setAttribute('aria-current','page');
+$('#assigned-panel').hidden=isExpress;$('#express-panel').hidden=!isExpress;
 const list = $('#task-list');
 const route=routeState({page:1,limit:10,estado:'',q:''});
 let page=1,sequence=0;const filters={estado:'',q:''};
@@ -258,7 +264,7 @@ async function openCreate() {
 }
 $('#btn-add')?.addEventListener('click', openCreate);
 
-route.onChange(()=>{restore();load(page);});restore();await load(page);
+if(isExpress){await initExpress({role});}else{route.onChange(()=>{restore();load(page);});restore();await load(page);}
 // El identificador se conserva internamente para abrir una tarea desde calendario/notificaciones.
 const linkedTask = new URLSearchParams(location.search).get('tarea');
-if (linkedTask && /^[1-9]\d*$/.test(linkedTask)) await openDetail(Number(linkedTask));
+if (!isExpress && linkedTask && /^[1-9]\d*$/.test(linkedTask)) await openDetail(Number(linkedTask));

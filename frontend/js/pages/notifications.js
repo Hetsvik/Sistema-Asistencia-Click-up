@@ -45,7 +45,7 @@ export function initNotifications(user) {
  };
  const schedule=()=>{clearTimeout(timer);if(!document.hidden&&navigator.onLine)timer=setTimeout(refresh,failures?Math.min(30000,POLL_NOTIFICATIONS_MS*2**Math.min(failures,4)):POLL_NOTIFICATIONS_MS);};
  async function refresh(){
-  if(busy||clearing||document.hidden||!navigator.onLine||browsingOlder){schedule();return;}
+  if(busy||clearing||document.hidden||!navigator.onLine){schedule();return;}
   busy=true;const token=generation;
   try{
    const initial=!initialized,data=await Notifications.list(initial?{}:{since:cursor});

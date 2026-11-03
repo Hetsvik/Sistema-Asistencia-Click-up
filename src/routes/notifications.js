@@ -1,16 +1,19 @@
 import { HttpError, intParam, json, readJson } from '../lib/http.js';
+import {generateDeadlineAlarms} from '../lib/deadline-alarms.js';
 const fields=`ID_Notificacion AS id,ID_Tarea AS tarea_id,Tipo AS tipo,Nombre_Tarea AS nombre,
  Descripcion AS descripcion,Fecha_Entrega AS fecha_entrega,Estado AS estado,Observaciones AS observaciones,Fecha_Evento AS fecha`;
-export async function list({env,user,url}) {
+export async function list({env,user,url,tz}) {
+ // Respaldo idempotente para trabajadores activos si el cron no está configurado.
+ if(user.rol==='trabajador')await generateDeadlineAlarms(env.DB,Date.now(),tz,user.id);
  const p=url.searchParams, since=intParam(p.get('since'),{min:0}), before=intParam(p.get('before'),{min:1});
  if(since!==null && before!==null)throw new HttpError(400,'Usa since o before, no ambos.');
  const limit=intParam(p.get('limit'),{min:1,max:100,fallback:40});
  const hidden=(await env.DB.prepare('SELECT Ocultas_Hasta AS n FROM Notificaciones_Lectura WHERE ID_Empleado=?').bind(user.empleado_id).first())?.n||0;
- const where=['ID_Empleado=?','ID_Notificacion>?'], binds=[user.empleado_id,Math.max(hidden,since??0)];
+ const where=['ID_Empleado=?','ID_Notificacion>?', 'NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Notificaciones_Tarea.ID_Tarea)'], binds=[user.empleado_id,Math.max(hidden,since??0)];
  // Si una persona cambia de rol, las antiguas alarmas tampoco aparecen al administrador.
  if(user.rol==='admin')where.push("Tipo NOT LIKE 'Vencimiento:%'");
  if(before!==null){where.push('ID_Notificacion<?');binds.push(before);}
- const {results}=await env.DB.prepare(`SELECT ${fields}, EXISTS(SELECT 1 FROM Tareas T WHERE T.ID_Tarea=Notificaciones_Tarea.ID_Tarea AND T.Fecha_Entrega=Notificaciones_Tarea.Fecha_Entrega AND T.Estado_Tarea IN ('Asignada','En Progreso')) AS vigente FROM Notificaciones_Tarea WHERE ${where.join(' AND ')} ORDER BY ID_Notificacion ${since!==null?'ASC':'DESC'} LIMIT ?`).bind(...binds,limit+1).all();
+ const {results}=await env.DB.prepare(`SELECT ${fields}, EXISTS(SELECT 1 FROM Tareas T WHERE T.ID_Tarea=Notificaciones_Tarea.ID_Tarea AND T.Fecha_Entrega=Notificaciones_Tarea.Fecha_Entrega AND T.Estado_Tarea IN ('Asignada','En Progreso') AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=T.ID_Tarea)) AS vigente FROM Notificaciones_Tarea WHERE ${where.join(' AND ')} ORDER BY ID_Notificacion ${since!==null?'ASC':'DESC'} LIMIT ?`).bind(...binds,limit+1).all();
  const has_more=results.length>limit, rows=results.slice(0,limit);
  const cursor=Math.max(hidden,since??0,...rows.map(x=>x.id));
  return json({notifications:rows,cursor,has_more,next_before:rows.length?Math.min(...rows.map(x=>x.id)):null,cleared_through:hidden,servidor_utc:new Date().toISOString()});

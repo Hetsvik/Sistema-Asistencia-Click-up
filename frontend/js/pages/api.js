@@ -57,6 +57,8 @@ export const Tasks = {
   list: (params) => request('GET', API.tasks, { params }),
   get: (id) => request('GET', API.task(id)),
   create: (body) => request('POST', API.tasks, { body }),
+  edit: (id,body) => request('PUT', API.task(id), {body}),
+  remove: id => request('DELETE', API.task(id)),
   setStatus: async (id, estado, observaciones, expected_estado) => { const result=await request('PUT', API.taskStatus(id), { body: { estado, observaciones, expected_estado } }); document.dispatchEvent(new CustomEvent('erp:task-status',{detail:{id,estado:result.task?.estado}})); return result; },
   comments: (id,params) => request('GET', API.taskComments(id),{params}),
   addComment: (id, mensaje) => request('POST', API.taskComments(id), { body: { mensaje } }),

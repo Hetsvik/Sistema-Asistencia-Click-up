@@ -40,7 +40,7 @@ function render() {
       <span class="date">${fmtDate(t.fecha_entrega)}</span>
       <span class="prio">${badgePrioridad(t.prioridad)}</span>
       <span class="estado">${badgeEstado(t.estado)}</span>
-      <span class="act"><button class="btn sm ${a.cls ?? ''}" data-action>${a.label}</button></span>
+      <span class="act"><button class="btn sm ${a.cls ?? ''}" data-action>${a.label}</button>${isAdmin?`<span class="task-menu-wrap"><button type="button" class="task-menu-toggle" data-task-menu aria-label="Opciones de la tarea" aria-expanded="false">⋮</button><span class="task-menu" hidden><button type="button" data-task-edit>Editar</button><button type="button" data-task-remove>Borrar</button></span></span>`:''}</span>
     </article>`;
   }).join('');
 }
@@ -56,6 +56,11 @@ list.addEventListener('click', async (e) => {
   const row = e.target.closest('.task');
   if (!row) return;
   const task = tasks.find((t) => t.id === Number(row.dataset.id));
+  if(!task)return;
+  const toggle=e.target.closest('[data-task-menu]');
+  if(toggle){const menu=toggle.nextElementSibling;const open=menu.hidden;closeTaskMenus();menu.hidden=!open;toggle.setAttribute('aria-expanded',String(open));return;}
+  if(e.target.closest('[data-task-edit]')){closeTaskMenus();return openEdit(task.id);}
+  if(e.target.closest('[data-task-remove]')){closeTaskMenus();return confirmRemove(task);}
   const btn = e.target.closest('[data-action]');
   const a = actionFor(task);
   if (btn && a.next) {
@@ -68,6 +73,30 @@ list.addEventListener('click', async (e) => {
   openDetail(task.id);
 });
 list.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('task')) openDetail(Number(e.target.dataset.id)); });
+
+function closeTaskMenus(){for(const m of list.querySelectorAll('.task-menu'))m.hidden=true;for(const b of list.querySelectorAll('[data-task-menu]'))b.setAttribute('aria-expanded','false');}
+document.addEventListener('click',e=>{if(!e.target.closest('.task-menu-wrap'))closeTaskMenus();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const open=list.querySelector('[data-task-menu][aria-expanded="true"]');if(open){closeTaskMenus();open.focus();}}});
+
+async function openEdit(id){
+ let task;try{task=(await Tasks.get(id)).task;}catch(err){return toast(err.message,'error');}
+ const dt=String(task.fecha_entrega||'').replace(' ','T');const parts=dt.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+ if(!parts)return toast('La fecha de entrega no es válida.','error');
+ const hour=Number(parts[2]);const selected=task.prioridad_manual||task.prioridad||'Media';
+ const modal=openModal({title:'Editar tarea',html:`<form id="edit-task" class="form-grid">
+ <label class="full">Descripción<textarea class="input plain" name="descripcion" rows="3" maxlength="500" required>${esc(task.descripcion)}</textarea></label>
+ <label class="full">Prioridad<select class="input plain" name="prioridad">${['Alta','Media','Baja'].map(x=>`<option ${x===selected?'selected':''}>${x}</option>`).join('')}</select></label>
+ <div id="edit-task-datetime" class="full"></div><p class="muted full">El trabajador asignado, el proyecto y la conversación no se modifican aquí.</p>
+ <p class="form-message is-error full" id="edit-task-error" role="alert" hidden></p><div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button><button type="submit" class="btn">Guardar cambios</button></div></form>`});
+ const form=$('#edit-task',modal.el),picker=initDateTimePicker($('#edit-task-datetime',form),{initialDate:parts[1],hour:hour%12||12,minute:Number(parts[3]),period:hour>=12?'PM':'AM',label:'Fecha y hora de entrega'});
+ form.addEventListener('submit',e=>{e.preventDefault();withBusy($('[type=submit]',form),async()=>{try{
+  await Tasks.edit(id,{descripcion:form.elements.descripcion.value,prioridad:form.elements.prioridad.value,fecha_entrega:picker.getValue(),expected:{descripcion:task.descripcion,fecha_entrega:task.fecha_entrega,prioridad_manual:task.prioridad_manual??null}});
+  modal.close();toast('Tarea actualizada.','success');await load();
+ }catch(err){const box=$('#edit-task-error',form);box.textContent=err.message;box.hidden=false;}});});
+}
+function confirmRemove(task){const modal=openModal({title:'Eliminar tarea',html:`<p>¿Eliminar la tarea de <strong>${esc(task.trabajador)}</strong> en ${esc(task.proyecto)}?</p><p>Dejará de aparecer en tareas, reportes y alarmas. El historial y los adjuntos se conservarán de forma privada; no se borrarán definitivamente.</p><p class="form-message is-error" id="delete-task-error" hidden role="alert"></p><div class="modal-actions"><button type="button" class="btn outline" data-close>Cancelar</button><button type="button" class="btn" id="delete-task-confirm">Eliminar tarea</button></div>`});
+ $('#delete-task-confirm',modal.el).onclick=e=>withBusy(e.currentTarget,async()=>{try{await Tasks.remove(task.id);modal.close();toast('Tarea eliminada de las vistas.','success');await load();}catch(err){const box=$('#delete-task-error',modal.el);box.hidden=false;box.textContent=err.message;}});
+}
 
 // ---------- Filtros ----------
 const menu = $('#filter-menu');

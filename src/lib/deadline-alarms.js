@@ -1,6 +1,6 @@
 import { nowLocal } from './dates.js';
 // Una inserción por lote y por minuto. El trigger guarda el aviso en la misma transacción.
-export async function generateDeadlineAlarms(db, scheduledTime, tz='America/Lima') {
+export async function generateDeadlineAlarms(db, scheduledTime, tz='America/Lima', workerId=null) {
  const when=nowLocal(tz,new Date(scheduledTime)).fechaHora;
  return db.prepare(`WITH umbrales(minutos) AS (VALUES(60),(30),(10),(5),(1))
  INSERT OR IGNORE INTO Alarmas_Vencimiento(ID_Tarea,Fecha_Entrega,Minutos,ID_Empleado)
@@ -9,8 +9,10 @@ export async function generateDeadlineAlarms(db, scheduledTime, tz='America/Lima
  JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado
  LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado CROSS JOIN umbrales U
  WHERE T.Estado_Tarea IN ('Asignada','En Progreso') AND E.Estado='Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'
+ AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=T.ID_Tarea)
+ ${workerId===null?'':'AND T.ID_Trabajador=?'}
  AND T.Fecha_Entrega >= ? AND T.Fecha_Entrega <= datetime(?, '+60 minutes')
  AND datetime(T.Fecha_Entrega, '-' || U.minutos || ' minutes') <= ?
  AND datetime(T.Fecha_Entrega, '-' || U.minutos || ' minutes') > datetime(?, '-1 minute')
- `).bind(when,when,when,when).run();
+ `).bind(...(workerId===null?[]:[workerId]),when,when,when,when).run();
 }

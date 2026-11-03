@@ -54,7 +54,7 @@ export async function summary({ env, user, url, tz }) {
 
   const prioridad=p.get('prioridad')||'';
   if(prioridad&&!['Alta','Media','Baja'].includes(prioridad))throw new HttpError(400,'Prioridad no válida.');
-  const taskWhere=`T.Fecha BETWEEN ? AND ?${trabajadorId?' AND T.ID_Trabajador=?':''}${prioridad?' AND D.Prioridad=?':''}`;
+  const taskWhere=`NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=T.ID_Tarea) AND T.Fecha BETWEEN ? AND ?${trabajadorId?' AND T.ID_Trabajador=?':''}${prioridad?' AND D.Prioridad=?':''}`;
   const taskBinds=[rango.desde,rango.hasta,...extra,...(prioridad?[prioridad]:[])];
   const {results:prioridades}=await env.DB.prepare(`SELECT COALESCE(D.Prioridad,'Sin prioridad') prioridad,COUNT(*) total,SUM(T.Estado_Tarea='Completada') completadas FROM Tareas T LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere} GROUP BY COALESCE(D.Prioridad,'Sin prioridad')`).bind(...taskBinds).all();
   const filtered=await env.DB.prepare(`SELECT COUNT(*) total,COALESCE(SUM(T.Estado_Tarea='Asignada'),0) asignadas,COALESCE(SUM(T.Estado_Tarea='En Progreso'),0) en_progreso,COALESCE(SUM(T.Estado_Tarea='En revisión'),0) en_revision,COALESCE(SUM(T.Estado_Tarea='Completada'),0) completadas,COALESCE(SUM(T.Observaciones LIKE '%FUERA DE PLAZO%'),0) fuera_de_plazo FROM Tareas T LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere}`).bind(...taskBinds).first();

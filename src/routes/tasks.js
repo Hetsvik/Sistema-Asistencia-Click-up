@@ -19,10 +19,11 @@ const SELECT = `
   JOIN Trabajadores w ON w.ID_Trabajador = t.ID_Trabajador
   JOIN Empleados e ON e.ID_Empleado = w.ID_Empleado`;
 
+const activeTask = `NOT EXISTS(SELECT 1 FROM Tareas_Control TC WHERE TC.ID_Tarea=t.ID_Tarea)`;
 const withPriority = (task, ahora) => ({ ...task, prioridad: task.prioridad_manual || priorityFor(task.fecha_entrega, task.estado, ahora) });
 
 async function loadTask(db, id, user) {
-  const task = await db.prepare(`${SELECT} WHERE t.ID_Tarea = ?`).bind(id).first();
+  const task = await db.prepare(`${SELECT} WHERE t.ID_Tarea = ? AND ${activeTask}`).bind(id).first();
   // Un trabajador no puede saber si existen tareas ajenas: responde 404 en ambos casos.
   if (!task || (user.rol === 'trabajador' && task.trabajador_id !== user.id)) throw new HttpError(404, 'Tarea no encontrada.');
   return task;
@@ -30,7 +31,7 @@ async function loadTask(db, id, user) {
 
 export async function list({ env, user, url, tz }) {
   const p = url.searchParams;
-  const where = [];
+  const where = [activeTask];
   const binds = [];
   const add = (sql, ...values) => { where.push(sql); binds.push(...values); };
 
@@ -151,9 +152,32 @@ export async function updateStatus({ request, env, user, params, tz }) {
   if (b.estado === 'En revisión' && task.fecha_entrega && toMs(ahora) > toMs(task.fecha_entrega) && !obs.includes(LATE_TAG)) {
     obs = `${LATE_TAG} ${obs}`.trim();
   }
-  const changed = await env.DB.prepare('UPDATE Tareas SET Estado_Tarea = ?, Observaciones = ? WHERE ID_Tarea = ? AND Estado_Tarea = ?').bind(b.estado, obs, id, task.estado).run();
+  const changed = await env.DB.prepare('UPDATE Tareas SET Estado_Tarea = ?, Observaciones = ? WHERE ID_Tarea = ? AND Estado_Tarea = ? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea)').bind(b.estado, obs, id, task.estado).run();
   if (!changed.meta.changes) throw new HttpError(409,'La tarea cambió. Vuelve a abrirla e inténtalo de nuevo.');
   return json({ message: 'Estado actualizado.', task: withPriority(await loadTask(env.DB, id, user), ahora) });
+}
+
+// Cambia campos de la tarea sin reasignar: el historial de chat y archivos sigue siendo privado.
+export async function edit({request,env,user,params}) {
+ const id=intParam(params.id,{min:1}),b=await readJson(request),task=await loadTask(env.DB,id,user);
+ const description=text(b.descripcion,{field:'La descripción',max:500});
+ const deadline=normalizeDateTime(b.fecha_entrega);
+ if(!deadline)throw new HttpError(400,'La fecha de entrega no es válida.');
+ if(task.fecha_inicio && toMs(deadline)<toMs(task.fecha_inicio))throw new HttpError(400,'La entrega no puede ser anterior al inicio.');
+ if(!['Alta','Media','Baja'].includes(b.prioridad))throw new HttpError(400,'Prioridad no válida.');
+ if(!b.expected || b.expected.descripcion!==task.descripcion || b.expected.fecha_entrega!==task.fecha_entrega || b.expected.prioridad_manual!==(task.prioridad_manual??null)) throw new HttpError(409,'La tarea cambió. Vuelve a abrir el formulario.');
+ const result=await env.DB.batch([
+  env.DB.prepare(`UPDATE Tareas SET Descripcion_Tarea=?,Fecha_Entrega=? WHERE ID_Tarea=? AND Descripcion_Tarea=? AND Fecha_Entrega IS ? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea) AND (SELECT Prioridad FROM Tareas_Detalle WHERE ID_Tarea=Tareas.ID_Tarea) IS ?`).bind(description,deadline,id,task.descripcion,task.fecha_entrega,task.prioridad_manual??null),
+  env.DB.prepare('UPDATE Tareas_Detalle SET Prioridad=? WHERE ID_Tarea=? AND changes()=1').bind(b.prioridad,id),
+ ]);
+ if(!result[0].meta.changes)throw new HttpError(409,'La tarea cambió. Vuelve a abrir el formulario.');
+ return json({message:'Tarea actualizada.',task:withPriority(await loadTask(env.DB,id,user),nowLocal('America/Lima').fechaHora)});
+}
+export async function remove({env,user,params}){
+ const id=intParam(params.id,{min:1});await loadTask(env.DB,id,user);
+ const res=await env.DB.prepare(`INSERT OR IGNORE INTO Tareas_Control(ID_Tarea,Eliminada_En,Eliminada_Por) SELECT ID_Tarea,?,? FROM Tareas WHERE ID_Tarea=?`).bind(new Date().toISOString(),user.empleado_id,id).run();
+ if(!res.meta.changes)throw new HttpError(409,'La tarea ya fue eliminada.');
+ return json({message:'Tarea eliminada de las vistas. Se conserva el historial de forma privada.'});
 }
 
 export async function comments({ env, user, params, url }) {
@@ -162,7 +186,7 @@ export async function comments({ env, user, params, url }) {
   const before=intParam(url.searchParams.get('before'),{min:1}),after=intParam(url.searchParams.get('after'),{min:0});
   if(before!==null&&after!==null)throw new HttpError(400,'Usa before o after, no ambos.');
   const ascending=after!==null;
-  const {results}=await env.DB.prepare(`SELECT ID_Comentario AS id,Autor AS autor,Rol AS rol,Mensaje AS mensaje,Fecha AS fecha FROM Comentarios_Tarea WHERE ID_Tarea=? ${before!==null?'AND ID_Comentario<?':after!==null?'AND ID_Comentario>?':''} ORDER BY ID_Comentario ${ascending?'ASC':'DESC'} LIMIT 51`).bind(id,...(before!==null?[before]:after!==null?[after]:[])).all();
+  const {results}=await env.DB.prepare(`SELECT ID_Comentario AS id,Autor AS autor,Rol AS rol,Mensaje AS mensaje,strftime('%Y-%m-%dT%H:%M:%SZ',Fecha) AS fecha FROM Comentarios_Tarea WHERE ID_Tarea=? ${before!==null?'AND ID_Comentario<?':after!==null?'AND ID_Comentario>?':''} ORDER BY ID_Comentario ${ascending?'ASC':'DESC'} LIMIT 51`).bind(id,...(before!==null?[before]:after!==null?[after]:[])).all();
   const more=results.length>50,rows=results.slice(0,50);if(!ascending)rows.reverse();
   const files=await commentFiles(env.DB,id,rows.map(c=>c.id));
   return json({comments:rows.map(c=>({...c,attachments:files.filter(f=>f.comment_id===c.id)})),has_more:more,before:rows[0]?.id??null,after:rows.at(-1)?.id??null});
@@ -175,7 +199,8 @@ export async function addComment({ request, env, user, params }) {
   const b = await readJson(request);
   const mensaje = text(b.mensaje, { field: 'El mensaje', max: 1000 });
   const rol = user.rol === 'admin' ? 'Administrador' : 'Empleado';
-  await env.DB.prepare('INSERT INTO Comentarios_Tarea (ID_Tarea, Autor, Rol, Mensaje) VALUES (?, ?, ?, ?)').bind(id, user.nombre, rol, mensaje).run();
+  const result=await env.DB.prepare('INSERT INTO Comentarios_Tarea (ID_Tarea, Autor, Rol, Mensaje) SELECT ID_Tarea,?,?,? FROM Tareas WHERE ID_Tarea=? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea)').bind(user.nombre,rol,mensaje,id).run();
+  if(!result.meta.changes)throw new HttpError(404,'Tarea no encontrada.');
   return json({ message: 'Comentario añadido.' }, 201);
 }
 

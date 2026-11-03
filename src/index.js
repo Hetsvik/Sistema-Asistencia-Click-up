@@ -41,6 +41,8 @@ router.get('/api/attendance', attendance.list, { auth: 'any' });
 router.get('/api/tasks', tasks.list, { auth: 'any' });
 router.post('/api/tasks', tasks.create, { auth: 'admin' });
 router.get('/api/tasks/:id', tasks.detail, { auth: 'any' });
+router.put('/api/tasks/:id', tasks.edit, { auth: 'admin' });
+router.delete('/api/tasks/:id', tasks.remove, { auth: 'admin' });
 router.put('/api/tasks/:id/status', tasks.updateStatus, { auth: 'any' });
 router.get('/api/tasks/:id/comments', tasks.comments, { auth: 'any' });
 router.post('/api/tasks/:id/comments', tasks.addComment, { auth: 'any' });

@@ -4,7 +4,7 @@ import {LIMITS,safeName,detectType,previewKind,disposition,limitedForm} from '..
 export const configured=env=>Boolean(env.ATTACHMENTS?.put&&env.ATTACHMENTS?.get&&env.ATTACHMENTS?.delete);
 const bucket=env=>{if(!configured(env))throw new HttpError(503,'R2 no está configurado. Revisa el binding ATTACHMENTS.');return env.ATTACHMENTS;};
 export async function authorizeTask(db,id,user){
- const task=await db.prepare('SELECT ID_Trabajador trabajador_id FROM Tareas WHERE ID_Tarea=?').bind(id).first();
+ const task=await db.prepare('SELECT ID_Trabajador trabajador_id FROM Tareas WHERE ID_Tarea=? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea)').bind(id).first();
  if(!task||(user.rol!=='admin'&&task.trabajador_id!==user.id))throw new HttpError(404,'Tarea no encontrada.');
  return task;
 }

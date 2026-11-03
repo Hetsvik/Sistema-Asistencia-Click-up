@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<script src="/static/cd486ce926add167/js/theme-init.js"></script>
+<script src="/static/670d113652006bec/js/theme-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Control de asistencia y actividades corporativas.">
 <meta name="theme-color" content="#080808">
@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:wght@500;600;700&amp;display=swap">
-<link rel="stylesheet" href="/static/cd486ce926add167/css/styles.css">
+<link rel="stylesheet" href="/static/670d113652006bec/css/styles.css">
 </head>
 <body class="auth-page">
 <canvas id="gold-wave-canvas" aria-hidden="true"></canvas>
@@ -30,18 +30,19 @@
     </div>
   </section>
   <section class="auth-card-wrap">
-    <form id="login-form" class="auth-card" novalidate>
+    <form id="login-form" class="auth-card" method="post" action="/" novalidate>
       <div><p class="eyebrow">Acceso seguro</p><h2>Bienvenido de nuevo</h2><p class="muted">Ingresa tus datos para continuar.</p></div>
       <div class="form-field"><label for="login-email">Correo corporativo</label>
         <input id="login-email" type="email" name="correo" autocomplete="username" maxlength="254" placeholder="user.ana@arqyservgen.com" required></div>
       <div class="form-field"><label for="login-pin">Contraseña</label>
         <input id="login-pin" name="pin" type="password" autocomplete="current-password" placeholder="••••" required></div>
+      <p id="login-unavailable" class="form-message is-error" role="alert">El acceso aún no está disponible. Si este mensaje continúa, recarga la página o comprueba la conexión.</p>
       <p id="login-message" class="form-message" role="alert" hidden></p>
-      <button class="btn btn-full" type="submit">Ingresar</button>
+      <button class="btn btn-full" type="submit" disabled>Ingresar</button>
       <p class="auth-note">Acceso exclusivo para personal autorizado.</p>
     </form>
   </section>
 </main>
-<script type="module" src="/static/cd486ce926add167/js/pages/login.js"></script>
+<script type="module" src="/static/670d113652006bec/js/pages/login.js"></script>
 </body>
 </html>

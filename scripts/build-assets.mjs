@@ -12,6 +12,6 @@ for(const p of assets){const target=join(root,'static',version,relative(root,p))
 for(const p of files.filter(p=>p.endsWith('.html'))){const html=await readFile(p,'utf8');await writeFile(p,html.replace(/(src|href)="(?:\/static\/[a-f0-9]+)?\/(js|css)\//g,`$1="/static/${version}/$2/`));}
 console.log(`Activos versionados: ${version}; ${assets.length} archivos. HTML listo para wrangler deploy.`);
 
-// Retiene hasta tres versiones para pestañas abiertas durante un despliegue.
+// Retiene la versión actual y hasta tres anteriores para pestañas abiertas durante un despliegue.
 const versions=await Promise.all((await readdir(join(root,'static'))).filter(n=>/^[a-f0-9]{16}$/.test(n)).map(async name=>({name,time:(await stat(join(root,'static',name))).mtimeMs})));
-for(const v of versions.filter(v=>v.name!==version).sort((a,b)=>b.time-a.time).slice(2))await rm(join(root,'static',v.name),{recursive:true,force:true});
+for(const v of versions.filter(v=>v.name!==version).sort((a,b)=>b.time-a.time).slice(3))await rm(join(root,'static',v.name),{recursive:true,force:true});

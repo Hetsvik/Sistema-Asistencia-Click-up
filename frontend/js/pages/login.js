@@ -37,3 +37,6 @@ form.addEventListener('submit', async (e) => {
     submit.textContent = 'Ingresar';
   }
 });
+// Habilitar únicamente después de cargar los módulos y registrar el controlador.
+$('#login-unavailable').hidden = true;
+submit.disabled = false;

@@ -3,7 +3,7 @@ import { initWorkSchedule } from '../work-schedule.js';
 import { ManagedUsers, WorkAreas, Photo } from '../api.js';
 import { initPage } from '../layout.js';
 import { ROUTES } from '../config.js';
-import { $, withBusy } from '../ui.js';
+import { $, esc, openModal, withBusy } from '../ui.js';
 import { enableMenuKeyboard, message, roles } from '../page-tools.js';
 
 async function main(){
@@ -33,6 +33,12 @@ async function main(){
       $('#user-code').textContent=user.revisar_nombre?'Revisa la distribución de nombres y apellidos del registro anterior antes de guardar.':user.requiere_clave?'Esta cuenta requiere una nueva contraseña para poder ingresar.':'';$('#user-code').hidden=false;
       $('#user-fields').disabled=false;$('#user-submit').disabled=false;
       if(user.id===current.empleado_id){$('#user-role').disabled=true;$('#user-role').title='No puedes cambiar tu propio rol';}
+      const remove=$('#user-remove');
+      if(user.id!==current.empleado_id){remove.disabled=false;remove.onclick=()=>{
+        const modal=openModal({title:'Eliminar usuario',html:`<p>¿Eliminar a <strong>${esc(user.nombre)}</strong> de la lista de usuarios?</p><p>La cuenta perderá el acceso y sus sesiones se cerrarán. Se conservarán sus datos, foto, tareas, asistencia y demás historial; no se borrarán de forma permanente. No podrá reactivarse desde la interfaz.</p><p class="module-message error" id="remove-user-error" role="alert" hidden></p><div class="module-actions"><button type="button" class="btn outline" data-close>Cancelar</button><button type="button" class="btn danger" id="confirm-user-remove">Eliminar usuario</button></div>`});
+        $('#confirm-user-remove',modal.el).onclick=e=>withBusy(e.currentTarget,async()=>{try{await ManagedUsers.remove(id);sessionStorage.setItem('erp-user-notice','Usuario eliminado de la lista. Su historial se conserva.');location.assign(ROUTES.admin.usuarios);}catch(err){const el=$('#remove-user-error',modal.el);el.hidden=false;el.textContent=err.message;}});
+      };}else{remove.title='No puedes eliminar tu propia cuenta';}
+
     }catch(err){message(err);return;}
   }
   if(!editing){$('#user-fields').disabled=false;$('#user-submit').disabled=false;}

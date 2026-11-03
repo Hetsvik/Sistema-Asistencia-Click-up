@@ -18,7 +18,7 @@ const ALL_BASE = `SELECT E.ID_Empleado AS id, E.Nombre_Completo AS nombre, E.Cor
  LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado
  WHERE COALESCE(C.Rol,CASE WHEN EXISTS(SELECT 1 FROM Administrador A WHERE A.ID_Empleado=E.ID_Empleado)
  THEN 'admin' ELSE 'trabajador' END)='trabajador'`;
-const ALL=`SELECT B.*,I.Nombres AS nombres,I.Apellido_Paterno AS apellido_paterno,I.Apellido_Materno AS apellido_materno,I.Correo_Personal AS correo_personal,I.Correo_Corporativo AS correo_corporativo,I.Revisar_Nombre AS revisar_nombre,I.Requiere_Clave AS requiere_clave,EA.ID_Area AS area_id,AT.Nombre AS area,COALESCE(EC.Cargo,TW.Rol_Cargo) AS cargo,EXISTS(SELECT 1 FROM Fotos_Usuario FU WHERE FU.ID_Empleado=B.id) AS tiene_foto FROM (${ALL_BASE}) B LEFT JOIN Identidad_Usuario I ON I.ID_Empleado=B.id LEFT JOIN Empleados_Area EA ON EA.ID_Empleado=B.id LEFT JOIN Areas_Trabajo AT ON AT.ID_Area=EA.ID_Area LEFT JOIN Empleados_Cargo EC ON EC.ID_Empleado=B.id LEFT JOIN Trabajadores TW ON TW.ID_Empleado=B.id`;
+const ALL=`SELECT B.*,I.Nombres AS nombres,I.Apellido_Paterno AS apellido_paterno,I.Apellido_Materno AS apellido_materno,I.Correo_Personal AS correo_personal,I.Correo_Corporativo AS correo_corporativo,I.Revisar_Nombre AS revisar_nombre,I.Requiere_Clave AS requiere_clave,EA.ID_Area AS area_id,AT.Nombre AS area,COALESCE(EC.Cargo,TW.Rol_Cargo) AS cargo,EXISTS(SELECT 1 FROM Fotos_Usuario FU WHERE FU.ID_Empleado=B.id) AS tiene_foto FROM (${ALL_BASE}) B LEFT JOIN Identidad_Usuario I ON I.ID_Empleado=B.id LEFT JOIN Empleados_Area EA ON EA.ID_Empleado=B.id LEFT JOIN Areas_Trabajo AT ON AT.ID_Area=EA.ID_Area LEFT JOIN Empleados_Cargo EC ON EC.ID_Empleado=B.id LEFT JOIN Trabajadores TW ON TW.ID_Empleado=B.id WHERE NOT EXISTS (SELECT 1 FROM Usuarios_Eliminados UE WHERE UE.ID_Empleado=B.id)`;
 const PUBLIC = 'id,nombre,correo,telefono,estado,rol,codigo,nombres,apellido_paterno,apellido_materno,correo_personal,correo_corporativo,revisar_nombre,requiere_clave,area_id,area,cargo,tiene_foto';
 const role = (v) => { if (!Object.hasOwn(ACCOUNT_TYPES, v)) throw new HttpError(400, 'Rol no válido.'); return v; };
 const idOf = (params) => intParam(params.id, { min: 1 });
@@ -46,6 +46,7 @@ async function fields(db, body, id = 0, { creating = false } = {}) {
 async function batch(db, stmts) {
   try { return await db.batch(stmts); }
   catch (err) {
+    if (String(err).includes('USUARIO_ELIMINADO')) throw new HttpError(409, 'El usuario fue eliminado y no puede reactivarse desde el sistema.');
     if (String(err).includes('ULTIMO_ADMIN')) throw new HttpError(409, 'Debe quedar al menos un administrador activo.');
     if (String(err).includes('UNIQUE constraint')) throw new HttpError(409, 'La cuenta ya existe. Actualiza la lista e inténtalo otra vez.');
     throw err;
@@ -146,4 +147,17 @@ export async function setStatus({ env,params,request,user }) {
     env.DB.prepare('UPDATE Cuentas_Usuario SET Version_Sesion=Version_Sesion+1 WHERE ID_Empleado=?').bind(id),
   ]);
   return json({ok:true});
+}
+
+// Retira la cuenta de administración sin borrar sus registros históricos.
+export async function remove({env,params,user}) {
+ const id=idOf(params);if(id===user.empleado_id)throw new HttpError(409,'No puedes eliminar tu propia cuenta.');
+ const current=await getAccount(env.DB,id);
+ await batch(env.DB,[
+  env.DB.prepare("UPDATE Empleados SET Estado='Inactivo' WHERE ID_Empleado=?").bind(id),
+  env.DB.prepare('INSERT OR IGNORE INTO Cuentas_Usuario(ID_Empleado,Rol) VALUES(?,?)').bind(id,current.rol),
+  env.DB.prepare('UPDATE Cuentas_Usuario SET Version_Sesion=Version_Sesion+1 WHERE ID_Empleado=?').bind(id),
+  env.DB.prepare('INSERT INTO Usuarios_Eliminados(ID_Empleado,Eliminado_UTC,Eliminado_Por) VALUES(?,?,?)').bind(id,new Date().toISOString(),user.empleado_id),
+ ]);
+ return json({message:'Usuario retirado. Su historial se conserva.'});
 }

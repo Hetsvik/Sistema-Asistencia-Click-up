@@ -84,6 +84,7 @@ export const ManagedUsers = {
   get: (id) => request('GET', API.managedUser(id)),
   create: (body) => request('POST', API.managedUsers, { body }),
   update: (id, body) => request('PUT', API.managedUser(id), { body }),
+  remove: id => request('DELETE', API.managedUser(id)),
   setStatus: (id, estado) => request('PUT', API.managedUserStatus(id), { body: { estado } }),
 };
 

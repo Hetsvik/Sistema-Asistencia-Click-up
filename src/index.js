@@ -92,6 +92,7 @@ router.get('/api/admin/users', userManagement.list, { auth: 'admin' });
 router.post('/api/admin/users', userManagement.create, { auth: 'admin' });
 router.get('/api/admin/users/:id', userManagement.detail, { auth: 'admin' });
 router.put('/api/admin/users/:id', userManagement.update, { auth: 'admin' });
+router.delete('/api/admin/users/:id', userManagement.remove, { auth: 'admin' });
 router.put('/api/admin/users/:id/status', userManagement.setStatus, { auth: 'admin' });
 
 // Reportes

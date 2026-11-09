@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<script src="/static/6b99ff2970e04b4f/js/theme-init.js"></script>
+<script src="/static/d5c8813d7e178dd7/js/theme-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#080808">
@@ -11,8 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:wght@500;600;700&amp;display=swap">
-<link rel="stylesheet" href="/static/6b99ff2970e04b4f/css/styles.css">
-<link rel="stylesheet" href="/static/6b99ff2970e04b4f/css/modulos.css">
+<link rel="stylesheet" href="/static/d5c8813d7e178dd7/css/styles.css">
+<link rel="stylesheet" href="/static/d5c8813d7e178dd7/css/modulos.css">
 </head>
 <body class="is-loading module-page" data-role="admin">
 <noscript><p style="padding:2rem;color:#f3d98b">Esta aplicación necesita JavaScript habilitado.</p></noscript>
@@ -34,11 +34,12 @@
 <div class="attendance-tabs" role="tablist" aria-label="Vistas de asistencia"><button class="btn" type="button" id="daily-tab" role="tab" aria-selected="true" aria-controls="daily-panel">Asistencia de hoy</button><button class="btn outline" type="button" id="history-tab" role="tab" aria-selected="false" aria-controls="history-panel" tabindex="-1">Historial</button></div>
 <section class="card" id="daily-panel" role="tabpanel" aria-labelledby="daily-tab"><div class="metrics-heading"><div><h2>Equipo · asistencia diaria</h2><p id="daily-date" class="muted"></p></div><span id="daily-refresh" role="status">Actualizando…</span></div><label class="metrics-search">Buscar trabajador<input class="input plain" type="search" id="daily-search" placeholder="Nombre del trabajador"></label><div id="daily-list" class="daily-list" aria-live="polite"></div><div class="metrics-pagination"><button class="btn outline" id="daily-prev" type="button">Anterior</button><span id="daily-page"></span><button class="btn outline" id="daily-next" type="button">Siguiente</button></div></section><section class="card" id="history-panel" role="tabpanel" aria-labelledby="history-tab" hidden>
 <h2 id="history-heading">Historial del equipo</h2>
+<p class="muted attendance-history-hint">Se muestran las últimas 6 marcaciones por página (3 días × 2 tramos). Usa «Siguiente» para continuar consultando el historial de todo el equipo.</p>
 <div class="metrics-toolbar"><label>Trabajador<input class="input plain" id="att-search" type="search" placeholder="Buscar por nombre"></label><label>Desde<input class="input plain" id="att-from" type="date"></label><label>Hasta<input class="input plain" id="att-to" type="date"></label></div>
 <div class="table-wrap"><table><thead><tr><th>Trabajador</th><th>Fecha / tramo</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead><tbody id="att-body"></tbody></table></div>
 <div class="metrics-pagination"><button class="btn outline" id="history-prev" type="button">Anterior</button><span id="history-page" role="status"></span><button class="btn outline" id="history-next" type="button">Siguiente</button></div></section>
   </main>
 </div>
-<script type="module" src="/static/6b99ff2970e04b4f/js/pages/asistencia.js"></script>
+<script type="module" src="/static/d5c8813d7e178dd7/js/pages/asistencia.js"></script>
 </body>
 </html>

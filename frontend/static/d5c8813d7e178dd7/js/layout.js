@@ -43,7 +43,9 @@ export async function initPage({ role, page }) {
   }
   document.body.insertAdjacentHTML('afterbegin', '<input type="checkbox" id="menu-check" aria-hidden="true" tabindex="-1">');
   $('.app').insertAdjacentHTML('afterbegin', sidebarHtml(user, page));
-  // Botón «Regresar» desactivado globalmente para administrador y trabajador.
+  // Todas las secciones internas conservan una vuelta segura al inicio cuando no hay historial.
+  // El botón «Regresar» se elimina del encabezado para administrador y trabajador.
+  const heading=$('.topbar > div:first-child');
   const avatar=$('#sidebar-avatar');
   function showPhoto(hasPhoto){if(!hasPhoto){avatar.innerHTML=icon('user');return;}const img=document.createElement('img');img.alt='Foto de perfil';img.onerror=()=>{avatar.innerHTML=icon('user');};img.src=`/api/user-photo/${encodeURIComponent(user.empleado_id)}?v=${Date.now()}`;avatar.replaceChildren(img);}
   showPhoto(user.tiene_foto);

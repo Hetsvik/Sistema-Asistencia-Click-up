@@ -6,17 +6,18 @@ import {routeState} from '../list-state.js';
 import {createPoll} from '../polling.js';
 import {$,debounce,esc,fmtDate,fmtTime,toast,withBusy} from '../ui.js';
 const role=document.body.dataset.role,admin=role==='admin';
+const HISTORY_PAGE_SIZE=6; // 3 días × 2 tramos
 await initPage({role,page:'inicio'});enableMenuKeyboard();
-const route=routeState({vista:admin?'hoy':'historial',page:1,limit:6,q:'',desde:'',hasta:''});
+const route=routeState({vista:admin?'hoy':'historial',page:1,limit:HISTORY_PAGE_SIZE,q:'',desde:'',hasta:''});
 const historyNav=$('#history-page').parentElement,dailyNav=admin?$('#daily-page').parentElement:null;
 let view='hoy',page=1,limit=6,generation=0,historySequence=0,nextSlot=null,pushRoute=false;
-function restore(){const s=route.read();view=admin&&s.vista!=='historial'?'hoy':'historial';page=s.page;limit=view==='historial'?6:([10,20,50].includes(s.limit)?s.limit:20);$('#att-from').value=s.desde;$('#att-to').value=s.hasta;if(admin){$('#att-search').value=s.q;$('#daily-search').value=s.q;}setPanels();}
+function restore(){const s=route.read();view=admin&&s.vista!=='historial'?'hoy':'historial';page=s.page;limit=view==='historial'?HISTORY_PAGE_SIZE:([10,20,50].includes(s.limit)?s.limit:20);$('#att-from').value=s.desde;$('#att-to').value=s.hasta;if(admin){$('#att-search').value=s.q;$('#daily-search').value=s.q;}setPanels();}
 function setPanels(){if(!admin)return;$('#daily-panel').hidden=view!=='hoy';$('#history-panel').hidden=view==='hoy';for(const [id,value] of [['daily','hoy'],['history','historial']]){const el=$('#'+id+'-tab'),on=view===value;el.setAttribute('aria-selected',String(on));el.tabIndex=on?0:-1;el.classList.toggle('outline',!on);}}
 function remember(data){route.write({vista:view,page:data.page,limit:data.limit,q:admin?$(view==='hoy'?'#daily-search':'#att-search').value.trim():'',desde:$('#att-from').value,hasta:$('#att-to').value},{replace:!pushRoute});pushRoute=false;}
 function initHistory(fecha){if(!$('#att-from').value)$('#att-from').value=historyStart(fecha);}
 async function historyList(next=page){
  const seq=++historySequence,gen=generation;$('#att-body').setAttribute('aria-busy','true');
- try{const d=await Attendance.list({page:next,limit,q:admin?$('#att-search').value.trim():'',desde:$('#att-from').value,hasta:$('#att-to').value});if(seq!==historySequence||gen!==generation)return;initHistory(d.fecha);page=d.page;
+ try{const d=await Attendance.list({page:next,limit:HISTORY_PAGE_SIZE,q:admin?$('#att-search').value.trim():'',desde:$('#att-from').value,hasta:$('#att-to').value});if(seq!==historySequence||gen!==generation)return;initHistory(d.fecha);page=d.page;
  $('#att-body').innerHTML=d.records.length?d.records.map(r=>`<tr>${admin?`<td data-label="Trabajador">${esc(r.nombre)}</td>`:''}<td data-label="Fecha / tramo">${fmtDate(r.fecha)}<small class="cell-note">${r.tramo?'Tramo '+r.tramo:'Registro anterior · sin evaluación por horario'}</small></td><td data-label="Entrada">${r.entrada?fmtTime(r.entrada):'Sin entrada'}</td><td data-label="Salida">${r.salida?fmtTime(r.salida):'—'}</td><td data-label="Estado"><span class="badge ${r.falta?'alta':r.estado==='A tiempo'?'baja':'media'}">${esc(r.estado)}</span>${r.motivo?`<small class="cell-note">${esc(r.motivo)}</small>`:''}</td></tr>`).join(''):`<tr><td colspan="${admin?5:4}" class="empty">Sin registros en este periodo.</td></tr>`;
  remember(d);pager(d,n=>{generation++;pushRoute=true;historyList(n);},{element:historyNav,simple:true});
  }catch(e){if(seq===historySequence&&gen===generation){toast(e.message,'error');historyNav.replaceChildren();}}finally{if(seq===historySequence)$('#att-body').setAttribute('aria-busy','false');}
@@ -31,7 +32,7 @@ if(admin){
  pager({...d,max_limit:50},n=>{generation++;pushRoute=true;page=n;poll.trigger();},{element:dailyNav,onSize:n=>{generation++;pushRoute=true;limit=n;page=1;poll.trigger();}});
  }
  const poll=createPoll(daily,{interval:30000,active:()=>view==='hoy',onError:e=>{$('#daily-refresh').textContent='No se pudo actualizar: '+e.message;}});
- function switchView(value){generation++;view=value;page=1;limit=view==='historial'?6:Math.min(limit,50);setPanels();route.write({vista:view,page,limit});if(view==='historial')historyList();else poll.trigger();}
+ function switchView(value){generation++;view=value;page=1;limit=view==='historial'?HISTORY_PAGE_SIZE:Math.min(limit,50);setPanels();route.write({vista:view,page,limit});if(view==='historial')historyList();else poll.trigger();}
  for(const [id,value] of [['daily','hoy'],['history','historial']]){const el=$('#'+id+'-tab');el.onclick=()=>switchView(value);el.onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const v=e.key==='Home'?'hoy':e.key==='End'?'historial':view==='hoy'?'historial':'hoy';switchView(v);$(v==='hoy'?'#daily-tab':'#history-tab').focus();}};}
  $('#daily-search').addEventListener('input',debounce(()=>{generation++;pushRoute=true;page=1;poll.trigger();},350));
  route.onChange(()=>{generation++;restore();if(view==='historial')historyList();else poll.trigger();});

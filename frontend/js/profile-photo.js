@@ -16,7 +16,9 @@ export async function cropProfilePhoto(file){
   const canvas=$('#photo-crop-canvas',modal.el),ctx=canvas.getContext('2d'),zoom=$('#photo-crop-zoom',modal.el);
   const draw=()=>{ctx.clearRect(0,0,OUTPUT,OUTPUT);ctx.fillStyle='#151515';ctx.fillRect(0,0,OUTPUT,OUTPUT);ctx.drawImage(source,x,y,source.width*scale,source.height*scale);};draw();
   const point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*OUTPUT/r.width,y:(e.clientY-r.top)*OUTPUT/r.height};};
-  canvas.onpointerdown=e=>{drag={...point(e),x,y};canvas.setPointerCapture(e.pointerId);};canvas.onpointermove=e=>{if(!drag)return;const p=point(e);x=drag.x+p.x-drag.x;y=drag.y+p.y-drag.y;clamp();draw();};canvas.onpointerup=canvas.onpointercancel=()=>{drag=null;};
+  canvas.onpointerdown=e=>{const p=point(e);drag={pointerX:p.x,pointerY:p.y,imageX:x,imageY:y};canvas.setPointerCapture(e.pointerId);};
+  canvas.onpointermove=e=>{if(!drag)return;const p=point(e);x=drag.imageX+(p.x-drag.pointerX);y=drag.imageY+(p.y-drag.pointerY);clamp();draw();};
+  canvas.onpointerup=canvas.onpointercancel=()=>{drag=null;};
   zoom.oninput=()=>{const previous=scale;scale=Number(zoom.value);x=OUTPUT/2-(OUTPUT/2-x)*scale/previous;y=OUTPUT/2-(OUTPUT/2-y)*scale/previous;clamp();draw();};
   let done=false;const finish=value=>{if(done)return;done=true;source.close();value?resolve(value):reject(new Error('Se canceló el ajuste de la foto.'));};
   $('#photo-crop-confirm',modal.el).onclick=()=>canvas.toBlob(blob=>{if(!blob){finish();return;}finish(new File([blob],'foto-perfil.jpg',{type:'image/jpeg'}));modal.close();},'image/jpeg',.9);

@@ -373,3 +373,8 @@ dialog.modal.task-create-wide{width:min(96vw,900px)}
 .page-back{display:inline-flex;align-items:center;margin-top:10px;padding:0;border:0;background:none;color:var(--gold);font:500 .84rem var(--font);cursor:pointer}.page-back:hover{text-decoration:underline;color:var(--gold-light)}.page-back:focus-visible{outline:2px solid var(--gold);outline-offset:4px;border-radius:3px}
 .photo-crop-frame{width:min(100%,360px);aspect-ratio:1;margin:0 auto;overflow:hidden;border:3px solid var(--gold);border-radius:50%;background:#151515;touch-action:none}.photo-crop-frame canvas{display:block;width:100%;height:100%;cursor:grab}.photo-crop-frame canvas:active{cursor:grabbing}.crop-help,.crop-zoom{display:grid;gap:8px}.crop-zoom{margin-top:16px;color:var(--text-dim)}.crop-zoom input{accent-color:var(--gold)}
 .express-area-row{display:flex;align-items:center;flex-wrap:wrap;gap:.8rem;margin:.6rem 0}.express-area-row .express-area{margin:0;min-width:180px}.express-area-row input[type=number]{width:90px}.express-capacity{padding-left:1.2rem;line-height:1.8}
+
+/* Estado de lectura de las notificaciones */
+.notif-item.is-unread{border-left:2px solid var(--gold);padding-left:12px;background:color-mix(in srgb,var(--gold) 5%,transparent)}
+.notif-status{display:inline-flex;align-self:flex-start;margin-bottom:5px;padding:2px 7px;border:1px solid var(--line-strong);border-radius:999px;color:var(--text-dim);font-size:.68rem;line-height:1.4}
+.notif-item.is-unread .notif-status{border-color:var(--gold);color:var(--gold-light);font-weight:600}

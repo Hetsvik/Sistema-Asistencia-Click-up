@@ -379,3 +379,7 @@ dialog.modal.task-create-wide{width:min(96vw,900px)}
 .notif-status{display:inline-flex;align-self:flex-start;margin-bottom:5px;padding:2px 7px;border:1px solid var(--line-strong);border-radius:999px;color:var(--text-dim);font-size:.68rem;line-height:1.4}
 .notif-item.is-unread .notif-status{border-color:var(--gold);color:var(--gold-light);font-weight:600}
 .attendance-history-hint{margin-top:-.35rem;margin-bottom:1rem;font-size:.86rem}
+
+
+/* Asistencia administrativa: mostrar únicamente Anterior y Siguiente. */
+#daily-panel .metrics-pagination #daily-page{display:none!important}

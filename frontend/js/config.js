@@ -44,6 +44,7 @@ export const API = {
   taskComments: (id) => `/api/tasks/${id}/comments`,
   projects: '/api/projects',
   notifications: '/api/notifications',
+  readNotifications: '/api/notifications/read',
   clearNotifications: '/api/notifications/clear',
   users: '/api/users',
   reportSummary: '/api/reports/summary',

@@ -67,7 +67,8 @@ async function legacyOut({ env, user, ahora }) {
 
 /** Trabajador: solo su historial. Administrador: todos, con filtros ?q=nombre &trabajador=id &desde &hasta */
 export async function list({env,user,url}){
- const now=peruNow(),p=url.searchParams,pg=pagination(p,{size:50});
+ // Se muestran seis marcaciones por vista: dos tramos durante tres días.
+ const now=peruNow(),p=url.searchParams,pg=pagination(p,{size:6,max:6});
  const start=new Date(now.fecha+'T00:00:00Z');start.setUTCDate(start.getUTCDate()-29);
  const desde=p.get('desde')||start.toISOString().slice(0,10),hasta=p.get('hasta')||now.fecha;
  if(!isDate(desde)||!isDate(hasta)||desde>hasta)throw new HttpError(400,'Intervalo de fechas inválido.');

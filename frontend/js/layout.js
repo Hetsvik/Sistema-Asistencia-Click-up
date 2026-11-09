@@ -43,6 +43,12 @@ export async function initPage({ role, page }) {
   }
   document.body.insertAdjacentHTML('afterbegin', '<input type="checkbox" id="menu-check" aria-hidden="true" tabindex="-1">');
   $('.app').insertAdjacentHTML('afterbegin', sidebarHtml(user, page));
+  // Todas las secciones internas conservan una vuelta segura al inicio cuando no hay historial.
+  const heading=$('.topbar > div:first-child');
+  if(heading&&!$('.page-back',heading)){
+    const back=document.createElement('button');back.type='button';back.className='page-back';back.textContent='← Regresar';back.setAttribute('aria-label','Regresar a la página anterior');
+    back.onclick=()=>{if(history.length>1)history.back();else location.assign(ROUTES[user.rol].inicio);};heading.append(back);
+  }
   const avatar=$('#sidebar-avatar');
   function showPhoto(hasPhoto){if(!hasPhoto){avatar.innerHTML=icon('user');return;}const img=document.createElement('img');img.alt='Foto de perfil';img.onerror=()=>{avatar.innerHTML=icon('user');};img.src=`/api/user-photo/${encodeURIComponent(user.empleado_id)}?v=${Date.now()}`;avatar.replaceChildren(img);}
   showPhoto(user.tiene_foto);

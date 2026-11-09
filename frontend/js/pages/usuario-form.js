@@ -1,4 +1,4 @@
-import { validateProfilePhoto } from '../profile-photo.js';
+import { cropProfilePhoto } from '../profile-photo.js';
 import { initWorkSchedule } from '../work-schedule.js';
 import { ManagedUsers, WorkAreas, Photo } from '../api.js';
 import { initPage } from '../layout.js';
@@ -43,6 +43,8 @@ async function main(){
   }
   if(!editing){$('#user-fields').disabled=false;$('#user-submit').disabled=false;}
   $('#user-photo-delete').onclick=async()=>{if(!editing||!confirm('¿Eliminar la foto de perfil?'))return;await withBusy($('#user-photo-delete'),async()=>{try{const r=await Photo.remove(id);$('#user-photo-preview').hidden=true;$('#user-photo-delete').hidden=true;$('#user-photo').value='';message(r.message);}catch(err){message(err);}});};
+  let selectedPhoto=null;
+  $('#user-photo').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{selectedPhoto=await cropProfilePhoto(file);const preview=$('#user-photo-preview');if(preview.src.startsWith('blob:'))URL.revokeObjectURL(preview.src);preview.src=URL.createObjectURL(selectedPhoto);preview.hidden=false;message(null);}catch(err){selectedPhoto=null;e.target.value='';if(err.message!=='Se canceló el ajuste de la foto.')message(err);}});
   const photoNotice=sessionStorage.getItem('erp-photo-notice');if(photoNotice){message(photoNotice);sessionStorage.removeItem('erp-photo-notice');}
   let previewSeq=0,previewTimer;
   const identityBody=()=>({nombres:$('#user-name').value.trim(),apellido_paterno:$('#user-paternal').value.trim(),apellido_materno:$('#user-maternal').value.trim(),correo_personal:$('#user-email').value.trim(),rol:$('#user-role').value});
@@ -51,7 +53,7 @@ async function main(){
   form.addEventListener('submit',async e=>{
     e.preventDefault();if($('#user-submit').disabled)return;message(null);
     let horario;try{horario=schedule.get();}catch(err){message(err);return;}
-    const photo=$('#user-photo').files[0];if(photo){try{await validateProfilePhoto(photo);}catch(err){message(err);return;}}
+    const photo=selectedPhoto;
     const body={...identityBody(),cargo:$('#user-cargo').value.trim(),area_id:Number(areaSelect.value),horario,pin:$('#user-password').value,rol:$('#user-role').value,telefono:$('#user-phone').value.trim()};
     await withBusy($('#user-submit'),async()=>{
       try{

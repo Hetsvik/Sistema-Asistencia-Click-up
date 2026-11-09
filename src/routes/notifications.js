@@ -8,7 +8,8 @@ export async function list({env,user,url,tz}) {
  const p=url.searchParams, since=intParam(p.get('since'),{min:0}), before=intParam(p.get('before'),{min:1});
  if(since!==null && before!==null)throw new HttpError(400,'Usa since o before, no ambos.');
  const limit=intParam(p.get('limit'),{min:1,max:100,fallback:40});
- const hidden=(await env.DB.prepare('SELECT Ocultas_Hasta AS n FROM Notificaciones_Lectura WHERE ID_Empleado=?').bind(user.empleado_id).first())?.n||0;
+ const state=(await env.DB.prepare('SELECT Ocultas_Hasta AS hidden,Leidas_Hasta AS read FROM Notificaciones_Lectura WHERE ID_Empleado=?').bind(user.empleado_id).first())||{};
+ const hidden=state.hidden||0,read=state.read||0;
  const where=['ID_Empleado=?','ID_Notificacion>?', 'NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Notificaciones_Tarea.ID_Tarea)'], binds=[user.empleado_id,Math.max(hidden,since??0)];
  // Si una persona cambia de rol, las antiguas alarmas tampoco aparecen al administrador.
  if(user.rol==='admin')where.push("Tipo NOT LIKE 'Vencimiento:%'");
@@ -16,14 +17,23 @@ export async function list({env,user,url,tz}) {
  const {results}=await env.DB.prepare(`SELECT ${fields}, EXISTS(SELECT 1 FROM Tareas T WHERE T.ID_Tarea=Notificaciones_Tarea.ID_Tarea AND T.Fecha_Entrega=Notificaciones_Tarea.Fecha_Entrega AND T.Estado_Tarea IN ('Asignada','En Progreso') AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=T.ID_Tarea)) AS vigente FROM Notificaciones_Tarea WHERE ${where.join(' AND ')} ORDER BY ID_Notificacion ${since!==null?'ASC':'DESC'} LIMIT ?`).bind(...binds,limit+1).all();
  const has_more=results.length>limit, rows=results.slice(0,limit);
  const cursor=Math.max(hidden,since??0,...rows.map(x=>x.id));
- return json({notifications:rows,cursor,has_more,next_before:rows.length?Math.min(...rows.map(x=>x.id)):null,cleared_through:hidden,servidor_utc:new Date().toISOString()});
+ return json({notifications:rows,cursor,has_more,next_before:rows.length?Math.min(...rows.map(x=>x.id)):null,cleared_through:hidden,read_through:read,servidor_utc:new Date().toISOString()});
+}
+export async function read({env,user,request}) {
+ const b=await readJson(request),through=intParam(b.through_id,{min:0});
+ if(through===null)throw new HttpError(400,'Falta el límite de notificaciones.');
+ await env.DB.prepare(`INSERT INTO Notificaciones_Lectura(ID_Empleado,Ocultas_Hasta,Leidas_Hasta)
+ SELECT ?,0,MIN(?,COALESCE(MAX(ID_Notificacion),0)) FROM Notificaciones_Tarea WHERE ID_Empleado=?
+ ON CONFLICT(ID_Empleado) DO UPDATE SET Leidas_Hasta=MAX(Leidas_Hasta,excluded.Leidas_Hasta)`).bind(user.empleado_id,through,user.empleado_id).run();
+ const read=(await env.DB.prepare('SELECT Leidas_Hasta AS n FROM Notificaciones_Lectura WHERE ID_Empleado=?').bind(user.empleado_id).first()).n;
+ return json({read_through:read});
 }
 export async function clear({env,user,request}) {
  const b=await readJson(request),through=intParam(b.through_id,{min:0});
  if(through===null)throw new HttpError(400,'Falta el límite de notificaciones.');
  // Nunca ocultar IDs futuros ni notificaciones de otra persona.
- await env.DB.prepare(`INSERT INTO Notificaciones_Lectura(ID_Empleado,Ocultas_Hasta)
- SELECT ?,MIN(?,COALESCE(MAX(ID_Notificacion),0)) FROM Notificaciones_Tarea WHERE ID_Empleado=?
+ await env.DB.prepare(`INSERT INTO Notificaciones_Lectura(ID_Empleado,Ocultas_Hasta,Leidas_Hasta)
+ SELECT ?,MIN(?,COALESCE(MAX(ID_Notificacion),0)),0 FROM Notificaciones_Tarea WHERE ID_Empleado=?
  ON CONFLICT(ID_Empleado) DO UPDATE SET Ocultas_Hasta=MAX(Ocultas_Hasta,excluded.Ocultas_Hasta)`).bind(user.empleado_id,through,user.empleado_id).run();
  const hidden=(await env.DB.prepare('SELECT Ocultas_Hasta AS n FROM Notificaciones_Lectura WHERE ID_Empleado=?').bind(user.empleado_id).first()).n;
  return json({cleared_through:hidden});

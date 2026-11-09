@@ -77,6 +77,7 @@ router.get('/api/account', account.detail, { auth: 'any' });
 router.put('/api/account', account.update, { auth: 'any' });
 router.put('/api/account/password', account.password, { auth: 'any' });
 router.get('/api/notifications', notifications.list, { auth: 'any' });
+router.post('/api/notifications/read', notifications.read, { auth: 'any' });
 router.post('/api/notifications/clear', notifications.clear, { auth: 'any' });
 router.get('/api/users', users.list, { auth: 'admin' });
 router.get('/api/admin/areas', areas.list, { auth: 'admin' });

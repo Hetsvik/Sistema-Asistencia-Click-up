@@ -90,6 +90,7 @@ export const ManagedUsers = {
 
 export const Notifications = {
  list: params => request('GET',API.notifications,{params}),
+ read: through_id => request('POST',API.readNotifications,{body:{through_id}}),
  clear: through_id => request('POST',API.clearNotifications,{body:{through_id}}),
 };
 export const Projects = {

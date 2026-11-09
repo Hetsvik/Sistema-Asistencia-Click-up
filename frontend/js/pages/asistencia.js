@@ -8,9 +8,9 @@ import {$,debounce,esc,fmtDate,fmtTime,toast,withBusy} from '../ui.js';
 const role=document.body.dataset.role,admin=role==='admin';
 const HISTORY_PAGE_SIZE=6; // 3 días × 2 tramos
 await initPage({role,page:'inicio'});enableMenuKeyboard();
-const route=routeState({vista:admin?'hoy':'historial',page:1,limit:HISTORY_PAGE_SIZE,q:'',desde:'',hasta:''});
+const route=routeState({vista:'historial',page:1,limit:HISTORY_PAGE_SIZE,q:'',desde:'',hasta:''});
 const historyNav=$('#history-page').parentElement,dailyNav=admin?$('#daily-page').parentElement:null;
-let view='hoy',page=1,limit=6,generation=0,historySequence=0,nextSlot=null,pushRoute=false;
+let view='historial',page=1,limit=HISTORY_PAGE_SIZE,generation=0,historySequence=0,nextSlot=null,pushRoute=false;
 function restore(){const s=route.read();view=admin&&s.vista!=='historial'?'hoy':'historial';page=s.page;limit=view==='historial'?HISTORY_PAGE_SIZE:([10,20,50].includes(s.limit)?s.limit:20);$('#att-from').value=s.desde;$('#att-to').value=s.hasta;if(admin){$('#att-search').value=s.q;$('#daily-search').value=s.q;}setPanels();}
 function setPanels(){if(!admin)return;$('#daily-panel').hidden=view!=='hoy';$('#history-panel').hidden=view==='hoy';for(const [id,value] of [['daily','hoy'],['history','historial']]){const el=$('#'+id+'-tab'),on=view===value;el.setAttribute('aria-selected',String(on));el.tabIndex=on?0:-1;el.classList.toggle('outline',!on);}}
 function remember(data){route.write({vista:view,page:data.page,limit:data.limit,q:admin?$(view==='hoy'?'#daily-search':'#att-search').value.trim():'',desde:$('#att-from').value,hasta:$('#att-to').value},{replace:!pushRoute});pushRoute=false;}

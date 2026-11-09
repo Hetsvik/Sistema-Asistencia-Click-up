@@ -11,7 +11,7 @@ await initPage({role,page:'inicio'});enableMenuKeyboard();
 const route=routeState({vista:'historial',page:1,limit:HISTORY_PAGE_SIZE,q:'',desde:'',hasta:''});
 const historyNav=$('#history-page').parentElement,dailyNav=admin?$('#daily-page').parentElement:null;
 let view='historial',page=1,limit=HISTORY_PAGE_SIZE,generation=0,historySequence=0,nextSlot=null,pushRoute=false;
-function restore(){const s=route.read();view=admin&&s.vista!=='historial'?'hoy':'historial';page=s.page;limit=view==='historial'?HISTORY_PAGE_SIZE:([10,20,50].includes(s.limit)?s.limit:20);$('#att-from').value=s.desde;$('#att-to').value=s.hasta;if(admin){$('#att-search').value=s.q;$('#daily-search').value=s.q;}setPanels();}
+function restore(){const s=route.read();view=admin&&s.vista!=='historial'?'hoy':'historial';page=s.page;limit=HISTORY_PAGE_SIZE;$('#att-from').value=s.desde;$('#att-to').value=s.hasta;if(admin){$('#att-search').value=s.q;$('#daily-search').value=s.q;}setPanels();}
 function setPanels(){if(!admin)return;$('#daily-panel').hidden=view!=='hoy';$('#history-panel').hidden=view==='hoy';for(const [id,value] of [['daily','hoy'],['history','historial']]){const el=$('#'+id+'-tab'),on=view===value;el.setAttribute('aria-selected',String(on));el.tabIndex=on?0:-1;el.classList.toggle('outline',!on);}}
 function remember(data){route.write({vista:view,page:data.page,limit:data.limit,q:admin?$(view==='hoy'?'#daily-search':'#att-search').value.trim():'',desde:$('#att-from').value,hasta:$('#att-to').value},{replace:!pushRoute});pushRoute=false;}
 function initHistory(fecha){if(!$('#att-from').value)$('#att-from').value=historyStart(fecha);}
@@ -29,10 +29,10 @@ if(admin){
  $('#daily-date').textContent=`${fmtDate(d.fecha)} · Hora de Perú · ${d.total} trabajadores`;
  $('#daily-list').innerHTML=d.workers.length?d.workers.map(w=>`<article class="daily-worker"><div><h3>${esc(w.nombre)}</h3><span class="badge ${w.faltas?'alta':w.estado==='Presente'?'baja':''}">${esc(w.estado)}</span>${w.faltas?`<small class="cell-note">${w.faltas} falta(s) por tramo</small>`:''}</div><div class="daily-slots">${w.tramos.map(s=>`<p><strong>Tramo ${s.tramo} · ${esc(s.inicio)}–${esc(s.fin)}</strong><span>${esc(s.estado)} · Entrada: ${s.entrada?fmtTime(s.entrada):'—'} · Salida: ${s.salida?fmtTime(s.salida):'—'}</span></p>`).join('')||`<p>${w.registro_anterior?`Entrada: ${fmtTime(w.registro_anterior.entrada)} · Salida: ${w.registro_anterior.salida?fmtTime(w.registro_anterior.salida):'—'}`:w.estado==='Descanso'?'Sin jornada prevista hoy':'Sin horario vigente; no se calculan faltas'}</p>`}</div></article>`).join(''):'<p class="empty">No hay trabajadores con ese nombre.</p>';
  $('#daily-refresh').textContent='Actualización automática · cada 30 s mientras la página esté visible';remember(d);
- pager({...d,max_limit:50},n=>{generation++;pushRoute=true;page=n;poll.trigger();},{element:dailyNav,onSize:n=>{generation++;pushRoute=true;limit=n;page=1;poll.trigger();}});
+ pager(d,n=>{generation++;pushRoute=true;page=n;poll.trigger();},{element:dailyNav,simple:true});
  }
  const poll=createPoll(daily,{interval:30000,active:()=>view==='hoy',onError:e=>{$('#daily-refresh').textContent='No se pudo actualizar: '+e.message;}});
- function switchView(value){generation++;view=value;page=1;limit=view==='historial'?HISTORY_PAGE_SIZE:Math.min(limit,50);setPanels();route.write({vista:view,page,limit});if(view==='historial')historyList();else poll.trigger();}
+ function switchView(value){generation++;view=value;page=1;limit=HISTORY_PAGE_SIZE;setPanels();route.write({vista:view,page,limit});if(view==='historial')historyList();else poll.trigger();}
  for(const [id,value] of [['daily','hoy'],['history','historial']]){const el=$('#'+id+'-tab');el.onclick=()=>switchView(value);el.onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const v=e.key==='Home'?'hoy':e.key==='End'?'historial':view==='hoy'?'historial':'hoy';switchView(v);$(v==='hoy'?'#daily-tab':'#history-tab').focus();}};}
  $('#daily-search').addEventListener('input',debounce(()=>{generation++;pushRoute=true;page=1;poll.trigger();},350));
  route.onChange(()=>{generation++;restore();if(view==='historial')historyList();else poll.trigger();});

@@ -6,7 +6,10 @@ export async function list({ env, url }) {
   const q = (url.searchParams.get('q') ?? '').trim().slice(0, 60);
   const area=url.searchParams.get('area');
   if(area!==null && area!=='sin-area' && (!/^[1-9]\d*$/.test(area)||!Number.isSafeInteger(Number(area))))throw new HttpError(400,'Área no válida.');
-  const fields = `SELECT T.ID_Trabajador AS id, T.Codigo_Trabajador AS codigo, E.Nombre_Completo AS nombre, T.Rol_Cargo AS cargo
+  const fields = `SELECT T.ID_Trabajador AS id, T.Codigo_Trabajador AS codigo, E.ID_Empleado AS empleado_id,
+                  E.Nombre_Completo AS nombre, T.Rol_Cargo AS cargo,
+                  EXISTS(SELECT 1 FROM Fotos_Usuario F WHERE F.ID_Empleado=E.ID_Empleado) AS tiene_foto,
+                  (SELECT A.Nombre FROM Empleados_Area EA JOIN Areas_Trabajo A ON A.ID_Area=EA.ID_Area WHERE EA.ID_Empleado=E.ID_Empleado ORDER BY A.Nombre LIMIT 1) AS area
                FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado = T.ID_Empleado
                LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado
                LEFT JOIN Empleados_Area EA ON EA.ID_Empleado=E.ID_Empleado

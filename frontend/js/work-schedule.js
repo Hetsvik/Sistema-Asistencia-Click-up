@@ -8,7 +8,7 @@ export function initWorkSchedule(root){
  <p class="field-help" id="schedule-help">Configura una semana habitual. Marca los días laborables y elige sus horas de entrada y salida.</p>
  <label class="schedule-enable"><input type="checkbox" id="schedule-enabled" aria-describedby="schedule-help"> Definir horario semanal</label>
  <div id="schedule-editor" hidden><div class="schedule-tools"><button type="button" class="btn outline sm" id="schedule-weekdays">Lun–vie · 09:00–18:00</button><button type="button" class="btn outline sm" id="schedule-copy">Copiar lunes a días activos</button></div>
- <p class="field-help">Horas de 00:00 a 23:59. Añade un segundo tramo si hay una pausa; el descanso no suma horas. Cada tramo debe terminar el mismo día.</p>
+ <p class="field-help">Horas de 00:00 a 23:59. Añade todos los tramos necesarios; las pausas no suman horas. Cada tramo debe terminar el mismo día.</p>
  <div id="schedule-days"></div></div>
  <p class="schedule-summary" id="schedule-summary" role="status" aria-live="polite"></p>
  <p class="field-help">Se guarda al pulsar Crear Usuario o Guardar Cambios. Los cambios rigen desde mañana (Perú). La entrada de cada tramo tiene 10 minutos de tolerancia.</p>`;
@@ -23,8 +23,8 @@ export function initWorkSchedule(root){
  function render(){
   enabled.checked=configured;editor.hidden=!configured;
   container.innerHTML=state.map((d,i)=>`<div class="schedule-day" data-day="${d.dia}"><div class="schedule-day-header"><label class="schedule-day-toggle"><input type="checkbox" data-active="${i}" ${d.active?'checked':''}> ${DAYS[i]}</label><span class="schedule-day-state">${d.active?'Laborable':'Descanso'}</span></div>
-  <div class="schedule-day-body" ${d.active?'':'hidden'}>${d.tramos.map((s,j)=>`<div class="schedule-slot"><span class="schedule-slot-title">Tramo ${j+1}</span><label for="schedule-${i}-${j}-in">Entrada<input class="input plain" id="schedule-${i}-${j}-in" type="time" step="60" value="${s.inicio}" data-i="${i}" data-j="${j}" data-key="inicio" aria-label="${DAYS[i]}, entrada del tramo ${j+1}"></label><label for="schedule-${i}-${j}-out">Salida<input class="input plain" id="schedule-${i}-${j}-out" type="time" step="60" value="${s.fin}" data-i="${i}" data-j="${j}" data-key="fin" aria-label="${DAYS[i]}, salida del tramo ${j+1}"></label>${j?`<button type="button" class="schedule-remove" data-remove="${i}" aria-label="Quitar segundo tramo de ${DAYS[i]}">×</button>`:''}</div>`).join('')}
-  ${d.tramos.length<2?`<button type="button" class="schedule-add" data-add="${i}">+ Añadir segundo tramo</button>`:''}<p class="schedule-day-error" id="schedule-error-${i}" role="alert" hidden></p></div></div>`).join('');
+  <div class="schedule-day-body" ${d.active?'':'hidden'}>${d.tramos.map((s,j)=>`<div class="schedule-slot"><span class="schedule-slot-title">Tramo ${j+1}</span><label for="schedule-${i}-${j}-in">Entrada<input class="input plain" id="schedule-${i}-${j}-in" type="time" step="60" value="${s.inicio}" data-i="${i}" data-j="${j}" data-key="inicio" aria-label="${DAYS[i]}, entrada del tramo ${j+1}"></label><label for="schedule-${i}-${j}-out">Salida<input class="input plain" id="schedule-${i}-${j}-out" type="time" step="60" value="${s.fin}" data-i="${i}" data-j="${j}" data-key="fin" aria-label="${DAYS[i]}, salida del tramo ${j+1}"></label>${j?`<button type="button" class="schedule-remove" data-remove="${i}" data-remove-slot="${j}" aria-label="Quitar tramo ${j+1} de ${DAYS[i]}">×</button>`:''}</div>`).join('')}
+  <button type="button" class="schedule-add" data-add="${i}">+ Añadir tramo</button><p class="schedule-day-error" id="schedule-error-${i}" role="alert" hidden></p></div></div>`).join('');
   updateSummary();
  }
  enabled.addEventListener('change',()=>{configured=enabled.checked;render();});
@@ -35,8 +35,8 @@ export function initWorkSchedule(root){
  });
  container.addEventListener('click',e=>{
   const add=e.target.closest('[data-add]'),remove=e.target.closest('[data-remove]');
-  if(add){const i=Number(add.dataset.add),end=state[i].tramos[0].fin;state[i].tramos.push({inicio:end,fin:end<'18:00'?'18:00':''});render();container.querySelector(`#schedule-${i}-1-in`).focus();}
-  if(remove){const i=Number(remove.dataset.remove);state[i].tramos.splice(1,1);render();container.querySelector(`[data-add="${i}"]`).focus();}
+  if(add){const i=Number(add.dataset.add),j=state[i].tramos.length,end=state[i].tramos.at(-1).fin;state[i].tramos.push({inicio:end,fin:end<'18:00'?'18:00':''});render();container.querySelector(`#schedule-${i}-${j}-in`).focus();}
+  if(remove){const i=Number(remove.dataset.remove),j=Number(remove.dataset.removeSlot);state[i].tramos.splice(j,1);render();container.querySelector(`[data-add="${i}"]`).focus();}
  });
  root.querySelector('#schedule-weekdays').addEventListener('click',()=>{configured=true;state=fresh().map((d,i)=>({...d,active:i<5}));render();});
  root.querySelector('#schedule-copy').addEventListener('click',()=>{

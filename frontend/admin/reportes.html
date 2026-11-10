@@ -24,6 +24,7 @@
         <p class="page-sub">Indicadores de desempeño</p>
       </div>
       <div class="top-actions">
+        <a class="btn outline back-home" href="/admin/inicio" aria-label="Regresar al inicio">← Regresar</a>
         <div class="notif-wrap">
           <button class="icon-btn" id="bell" type="button" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><span class="dot" hidden></span></button>
           <div class="notif-panel" id="notif-panel" hidden></div>
@@ -31,7 +32,7 @@
         <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
       </div>
     </header>
-<section class="card"><div class="metrics-heading"><div><h2>Indicadores del equipo</h2><p class="muted" id="report-scope"></p></div><span id="report-status" role="status"></span></div><div class="report-controls"><label>Buscar trabajador<input class="input plain" id="user-search" type="search" placeholder="Nombre o código" autocomplete="off"><select id="report-worker" class="input plain" aria-label="Seleccionar trabajador"><option value="">Todos los trabajadores</option></select></label><label>Periodo<select class="input plain" id="periodo"><option value="semana">Esta semana</option><option value="mes" selected>Este mes</option><option value="todo">Histórico</option></select></label><label>Prioridad de las tareas<select class="input plain" id="report-priority"><option value="">Todas las prioridades</option><option>Alta</option><option>Media</option><option>Baja</option></select></label></div>
+<section class="card"><div class="metrics-heading"><div><h2>Indicadores del equipo</h2><p class="muted" id="report-scope"></p></div><span id="report-status" role="status"></span></div><div class="report-controls"><div class="worker-report-picker"><label for="user-search">Buscar trabajador</label><div class="worker-report-search"><input class="input plain" id="user-search" type="search" placeholder="Nombre o código" autocomplete="off"><button class="btn outline" id="choose-worker" type="button">Seleccionar trabajador</button></div><input id="report-worker" type="hidden" value=""></div><label>Periodo<select class="input plain" id="periodo"><option value="semana">Esta semana</option><option value="mes" selected>Este mes</option><option value="todo">Histórico</option></select></label><label>Prioridad de las tareas<select class="input plain" id="report-priority"><option value="">Todas las prioridades</option><option>Alta</option><option>Media</option><option>Baja</option></select></label></div>
 <div class="metric-grid"><div class="metric-box"><span>Puntualidad</span><b id="metric-punctual">—</b><small id="metric-punctual-sub"></small></div><div class="metric-box"><span>Faltas por tramo</span><b id="metric-absences">—</b><small id="metric-absences-sub"></small></div><div class="metric-box"><span>Tareas completadas</span><b id="metric-tasks">—</b><small id="metric-tasks-sub"></small></div><div class="metric-box"><span>Eficiencia</span><b id="metric-efficiency">—</b><small>Completadas / asignadas en el periodo</small></div></div>
 <p class="report-note">Puntualidad = entradas dentro de la tolerancia / tramos evaluados. Se evalúa al marcar o al superar los 10 minutos; los tramos futuros no cuentan. Una entrada fuera de tolerancia o una entrada ausente suma una sola falta por tramo. Solo se usan horarios con vigencia registrada; no se recalculan faltas antiguas.</p>
 <div class="report-controls"><label>Métrica<select class="input plain" id="report-metric"><option value="prioridad">Tareas por prioridad</option><option value="estado">Estado de tareas</option><option value="puntualidad">Puntualidad por tramo</option></select></label><label>Tipo de gráfico<select class="input plain" id="report-chart"><option value="barras">Barras verticales</option><option value="horizontal">Barras horizontales</option><option value="dona">Dona / proporciones</option></select></label></div>
@@ -42,4 +43,5 @@
 <script type="module" src="/js/pages/reportes.js"></script>
 </body>
 </html>
+
 

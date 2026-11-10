@@ -1,7 +1,7 @@
 import { HttpError } from './http.js';
 const days=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const minute=v=>Number(v.slice(0,2))*60+Number(v.slice(3));
-/** Contrato: null = sin configurar; [] = semana sin jornadas. Dos tramos diurnos máximo. */
+/** Contrato: null = sin configurar; [] = semana sin jornadas. Admite varios tramos por día. */
 export function validateSchedule(value){
  if(value===null)return null;
  if(!Array.isArray(value)||value.length>7)throw new HttpError(400,'Horario: selecciona hasta siete días.');
@@ -9,13 +9,13 @@ export function validateSchedule(value){
  const result=value.map(row=>{
   if(!row||typeof row!=='object'||!Number.isInteger(row.dia)||row.dia<1||row.dia>7||seen.has(row.dia))throw new HttpError(400,'Horario: los días deben ser únicos, de lunes a domingo.');
   seen.add(row.dia);const name=days[row.dia-1];
-  if(!Array.isArray(row.tramos)||row.tramos.length<1||row.tramos.length>2)throw new HttpError(400,`${name}: indica uno o dos tramos de trabajo.`);
+  if(!Array.isArray(row.tramos)||row.tramos.length<1)throw new HttpError(400,`${name}: indica al menos un tramo de trabajo.`);
   const tramos=row.tramos.map(s=>{
    if(!s||typeof s!=='object'||!['inicio','fin'].every(k=>typeof s[k]==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(s[k])))throw new HttpError(400,`${name}: usa horas válidas en formato HH:mm (00:00–23:59).`);
    if(minute(s.inicio)>=minute(s.fin))throw new HttpError(400,`${name}: la salida debe ser posterior a la entrada del mismo día.`);
    return {inicio:s.inicio,fin:s.fin};
   }).sort((a,b)=>a.inicio.localeCompare(b.inicio));
-  if(tramos.length===2&&tramos[1].inicio<tramos[0].fin)throw new HttpError(400,`${name}: los tramos no pueden superponerse.`);
+  if(tramos.some((s,i)=>i>0&&s.inicio<tramos[i-1].fin))throw new HttpError(400,`${name}: los tramos no pueden superponerse.`);
   return {dia:row.dia,tramos};
  }).sort((a,b)=>a.dia-b.dia);
  return result;

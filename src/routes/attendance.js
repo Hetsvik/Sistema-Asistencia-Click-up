@@ -24,8 +24,9 @@ export async function checkIn(ctx){
  const {env,user,url}=ctx,now=peruNow(),plan=await currentPlan(env.DB,user.empleado_id,user.id,now);
  if(!plan.configurado&&!plan.fijado)return legacyIn({...ctx,ahora:now});
  if(!plan.tramos.length)throw new HttpError(409,'Hoy es día de descanso según tu horario.');
- if(plan.tramos.some(s=>s.entrada&&!s.salida))throw new HttpError(409,'Marca primero la salida del tramo abierto.');
- const requested=intParam(url.searchParams.get('tramo'),{min:1,max:2});
+ const open=plan.tramos.find(s=>s.entrada&&!s.salida);
+ if(open)throw new HttpError(409,`Marca primero la salida del tramo ${open.tramo}.`);
+ const requested=intParam(url.searchParams.get('tramo'),{min:1,max:100});
  const slot=requested?plan.tramos.find(s=>s.tramo===requested):plan.tramos.find((s,i)=>!s.entrada&&now.hora<s.fin+':00'&&(i===0||now.hora>=plan.tramos[i-1].fin+':00'));
  if(!slot)throw new HttpError(409,'No hay un tramo disponible para marcar entrada en este momento.');
  const i=slot.tramo-1;
@@ -67,8 +68,8 @@ async function legacyOut({ env, user, ahora }) {
 
 /** Trabajador: solo su historial. Administrador: todos, con filtros ?q=nombre &trabajador=id &desde &hasta */
 export async function list({env,user,url}){
- // Se muestran seis marcaciones por vista: dos tramos durante tres días.
- const now=peruNow(),p=url.searchParams,pg=pagination(p,{size:6,max:6});
+ // Se muestran hasta veinte marcaciones por vista; un horario puede tener varios tramos por día.
+ const now=peruNow(),p=url.searchParams,pg=pagination(p,{size:20,max:100});
  const start=new Date(now.fecha+'T00:00:00Z');start.setUTCDate(start.getUTCDate()-29);
  const desde=p.get('desde')||start.toISOString().slice(0,10),hasta=p.get('hasta')||now.fecha;
  if(!isDate(desde)||!isDate(hasta)||desde>hasta)throw new HttpError(400,'Intervalo de fechas inválido.');

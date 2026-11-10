@@ -6,7 +6,7 @@ import {routeState} from '../list-state.js';
 import {createPoll} from '../polling.js';
 import {$,debounce,esc,fmtDate,fmtTime,toast,withBusy} from '../ui.js';
 const role=document.body.dataset.role,admin=role==='admin';
-const HISTORY_PAGE_SIZE=6; // 3 días × 2 tramos
+const HISTORY_PAGE_SIZE=20;
 await initPage({role,page:'inicio'});enableMenuKeyboard();
 const route=routeState({vista:'historial',page:1,limit:HISTORY_PAGE_SIZE,q:'',desde:'',hasta:''});
 const historyNav=$('#history-page').parentElement,dailyNav=admin?$('#daily-page').parentElement:null;
@@ -44,7 +44,7 @@ if(admin){
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)invalidate();});window.addEventListener('pageshow',e=>{if(e.persisted)invalidate();});
  const poll=createPoll(async()=>{const requestedAt=performance.now(),d=await Attendance.today(),p=d.plan;clock.sync(d.server_epoch_ms,requestedAt);tick();initHistory(d.fecha);
  $('#my-plan').innerHTML=p.tramos.map(s=>`<article class="card"><h2>Tramo ${s.tramo} · ${esc(s.inicio)}–${esc(s.fin)}</h2><p>${esc(s.estado)}</p><p class="muted">Entrada: ${s.entrada?fmtTime(s.entrada):'—'} · Salida: ${s.salida?fmtTime(s.salida):'—'}</p></article>`).join('');
- if(p.configurado||p.fijado){const open=p.tramos.some(s=>s.entrada&&!s.salida);nextSlot=p.tramos.find((s,i)=>!s.entrada&&d.hora<s.fin+':00'&&(i===0||d.hora>=p.tramos[i-1].fin+':00'))?.tramo||null;$('#btn-in').disabled=open||!nextSlot;$('#btn-out').disabled=!open;$('#att-status').textContent=p.tramos.length?'Cada entrada tiene 10 minutos de tolerancia. Pasado el límite se registra una falta por tramo.':'Hoy es día de descanso según tu horario.';}
+ if(p.configurado||p.fijado){const open=p.tramos.find(s=>s.entrada&&!s.salida);nextSlot=p.tramos.find((s,i)=>!s.entrada&&d.hora<s.fin+':00'&&(i===0||d.hora>=p.tramos[i-1].fin+':00'))?.tramo||null;$('#btn-in').disabled=!!open||!nextSlot;$('#btn-out').disabled=!open;$('#att-status').textContent=p.tramos.length?'Cada tramo tiene su propia entrada y salida. La tolerancia es de 10 minutos desde su hora de inicio.':'Hoy es día de descanso según tu horario.';}
  else{nextSlot=null;$('#btn-in').disabled=!!d.registro;$('#btn-out').disabled=!d.registro||!!d.registro.salida;$('#att-status').textContent=d.registro?(d.registro.salida?'Jornada cerrada.':'Entrada registrada.'):'Sin horario vigente: marcación diaria sin cálculo de faltas. Un horario nuevo rige desde mañana.';}
  },{interval:15000,onError:e=>{invalidate();$('#att-status').textContent=e.message;}});
  setInterval(()=>{if(!document.hidden)tick();},1000);

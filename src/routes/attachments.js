@@ -4,13 +4,8 @@ import {LIMITS,safeName,detectType,previewKind,disposition,limitedForm} from '..
 export const configured=env=>Boolean(env.ATTACHMENTS?.put&&env.ATTACHMENTS?.get&&env.ATTACHMENTS?.delete);
 const bucket=env=>{if(!configured(env))throw new HttpError(503,'R2 no está configurado. Revisa el binding ATTACHMENTS.');return env.ATTACHMENTS;};
 export async function authorizeTask(db,id,user){
- const task=await db.prepare(`SELECT T.ID_Trabajador trabajador_id,T.Descripcion_Tarea task_name,
-  Trabajador.Nombre_Completo worker_name,Administrador.Nombre_Completo administrator_name
+ const task=await db.prepare(`SELECT T.ID_Trabajador trabajador_id,T.Descripcion_Tarea task_name
   FROM Tareas T
-  JOIN Trabajadores W ON W.ID_Trabajador=T.ID_Trabajador
-  JOIN Empleados Trabajador ON Trabajador.ID_Empleado=W.ID_Empleado
-  JOIN Administrador A ON A.ID_Administrador=T.ID_Administrador_Asignador
-  JOIN Empleados Administrador ON Administrador.ID_Empleado=A.ID_Empleado
   WHERE T.ID_Tarea=? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=T.ID_Tarea)`).bind(id).first();
  if(!task||(user.rol!=='admin'&&task.trabajador_id!==user.id))throw new HttpError(404,'Tarea no encontrada.');
  return task;
@@ -18,13 +13,13 @@ export async function authorizeTask(db,id,user){
 export const status=async({env})=>json({configured:configured(env),limits:{files:LIMITS.count,per_file:LIMITS.file,total:LIMITS.total,per_task:LIMITS.task,per_author:LIMITS.user},preview:['image/png','image/jpeg','image/webp','text/plain','text/csv']});
 const hex=bytes=>[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join('');
 async function digest(value){return hex(await crypto.subtle.digest('SHA-256',typeof value==='string'?new TextEncoder().encode(value):value));}
-// Los segmentos proceden de datos visibles en la aplicación. Se limpian para que no
-// creen carpetas inesperadas, pero el nombre del archivo se conserva exactamente.
+// Las carpetas usan los nombres visibles en la aplicación. Se limpian para que no
+// creen rutas inesperadas, pero el archivo conserva exactamente su nombre original.
 const folderName=value=>{
- const cleaned=String(value??'').normalize('NFC').trim().replace(/[\\/\x00-\x1f\x7f]/g,'-').replace(/\s+/g,' ').slice(0,160);
+ const cleaned=String(value??'').normalize('NFC').trim().replace(/[\\/\x00-\x1f\x7f]/g,'-').slice(0,160);
  return cleaned&&cleaned!=='.'&&cleaned!=='..'?cleaned:'Sin nombre';
 };
-const objectKey=(task,uploadId,name)=>`tareas/${folderName(task.task_name)}/${folderName(task.administrator_name)}/${folderName(task.worker_name)}/${uploadId}/${name}`;
+const objectKey=(task,userName,name)=>`${folderName(task.task_name)}/${folderName(userName)}/${name}`;
 export async function discard(env,row){
  // El estado impide que una recuperación simultánea publique estos objetos.
  const token=crypto.randomUUID(),now=new Date().toISOString(),cutoff=new Date(Date.now()-3600000).toISOString();
@@ -65,7 +60,7 @@ export async function send({request,env,user,params}){
   if(row.Estado!=='error'||row.Bytes!==0)throw new HttpError(409,'El envío sigue procesándose o recuperándose. Reintenta en unos momentos con la misma selección.');
  }
  const uploadId=row?.ID||crypto.randomUUID(),attempt=crypto.randomUUID();
- const plan=row?JSON.parse(row.Plan_JSON):data.map(f=>({id:crypto.randomUUID(),key:objectKey(task,uploadId,f.name),name:f.name,mime:f.mime,size:f.size}));
+ const plan=row?JSON.parse(row.Plan_JSON):data.map(f=>({id:crypto.randomUUID(),key:objectKey(task,user.nombre,f.name),name:f.name,mime:f.mime,size:f.size}));
  const quota=`(SELECT COALESCE(SUM(Bytes),0) FROM Envios_R2 WHERE ID_Tarea=? AND ID<>?) + ? <= ? AND (SELECT COALESCE(SUM(Bytes),0) FROM Envios_R2 WHERE ID_Empleado=? AND ID<>?) + ? <= ? AND (SELECT COALESCE(SUM(json_array_length(Plan_JSON)),0) FROM Envios_R2 WHERE ID_Tarea=? AND ID<>? AND Bytes>0)+?<=? AND (SELECT COALESCE(SUM(json_array_length(Plan_JSON)),0) FROM Envios_R2 WHERE ID_Empleado=? AND ID<>? AND Bytes>0)+?<=?`;
  const binds=[id,uploadId,total,LIMITS.task,user.empleado_id,uploadId,total,LIMITS.user,id,uploadId,data.length,LIMITS.taskCount,user.empleado_id,uploadId,data.length,LIMITS.userCount];
  const reservation=row?

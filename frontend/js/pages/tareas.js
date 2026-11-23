@@ -1,4 +1,5 @@
 import { initExpress } from '../express.js';
+import {openWorkerPicker} from '../worker-picker.js';
 import {routeState} from '../list-state.js';
 import {pager} from '../page-tools.js';
 import {createPoll} from '../polling.js';
@@ -21,9 +22,9 @@ $('#tab-assigned').href=base;$('#tab-express').href=base+'?tab=express';$('#tab-
 $(isHistory?'#tab-history':isExpress?'#tab-express':'#tab-assigned').setAttribute('aria-current','page');
 $('#assigned-panel').hidden=isExpress||isHistory;$('#express-panel').hidden=!isExpress;$('#history-panel').hidden=!isHistory;
 const list = $('#task-list');
-const route=routeState({page:1,limit:10,estado:'',q:'',desde:'',hasta:''});
-let page=1,sequence=0,historyPage=1,historySequence=0;const filters={estado:'',q:''};let tasks=[],historyTasks=[];
-const restore=()=>{const v=route.read();page=v.page;historyPage=v.page;filters.estado=v.estado;filters.q=v.q;$('#task-search').value=v.q;$('#history-from').value=v.desde;$('#history-to').value=v.hasta;$$('[data-estado]').forEach(b=>b.classList.toggle('is-active',b.dataset.estado===v.estado));};
+const route=routeState({page:1,limit:10,estado:'',q:'',desde:'',hasta:'',trabajador:''});
+let page=1,sequence=0,historyPage=1,historySequence=0,historyWorkerId='';const filters={estado:'',q:''};let tasks=[],historyTasks=[];
+const restore=()=>{const v=route.read();page=v.page;historyPage=v.page;historyWorkerId=v.trabajador;filters.estado=v.estado;filters.q=v.q;$('#task-search').value=v.q;$('#history-from').value=v.desde;$('#history-to').value=v.hasta;const workerButton=$('#history-select-worker');if(workerButton)workerButton.textContent=historyWorkerId?'Trabajador seleccionado':'Seleccionar trabajador';$$('[data-estado]').forEach(b=>b.classList.toggle('is-active',b.dataset.estado===v.estado));};
 const nav=document.createElement('nav');list.after(nav);
 
 // ---------- Listado ----------
@@ -69,14 +70,15 @@ function renderHistory(){
 }
 async function loadHistory(next=historyPage){
  const seq=++historySequence;historyList.setAttribute('aria-busy','true');
- try{const desde=$('#history-from').value,hasta=$('#history-to').value;const data=await Tasks.list({historial:1,desde,hasta,page:next,limit:10});if(seq!==historySequence)return;historyTasks=data.tasks;historyPage=data.page;renderHistory();route.write({page:historyPage,limit:null,desde,hasta});pager(data,loadHistory,{element:historyNav,simple:true});}
+ try{const desde=$('#history-from').value,hasta=$('#history-to').value;const data=await Tasks.list({historial:1,desde,hasta,trabajador:isAdmin?historyWorkerId:'',page:next,limit:10});if(seq!==historySequence)return;historyTasks=data.tasks;historyPage=data.page;renderHistory();route.write({page:historyPage,limit:null,desde,hasta,trabajador:historyWorkerId});pager(data,loadHistory,{element:historyNav,simple:true});}
  catch(err){if(seq===historySequence)toast(err.message,'error');}
  finally{if(seq===historySequence)historyList.setAttribute('aria-busy','false');}
 }
 historyList.addEventListener('click',e=>{const row=e.target.closest('.history-task');if(row)openDetail(Number(row.dataset.id));});
 historyList.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('history-task'))openDetail(Number(e.target.dataset.id));});
 $('#history-filters').addEventListener('submit',e=>{e.preventDefault();const desde=$('#history-from').value,hasta=$('#history-to').value;if(desde&&hasta&&desde>hasta)return toast('La fecha inicial no puede ser posterior a la fecha final.','error');loadHistory(1);});
-$('#history-clear').addEventListener('click',()=>{$('#history-from').value='';$('#history-to').value='';loadHistory(1);});
+$('#history-select-worker')?.addEventListener('click',()=>openWorkerPicker({onSelect:worker=>{historyWorkerId=String(worker.id);$('#history-select-worker').textContent=`Trabajador: ${worker.nombre}`;loadHistory(1);}}));
+$('#history-clear').addEventListener('click',()=>{$('#history-from').value='';$('#history-to').value='';historyWorkerId='';const workerButton=$('#history-select-worker');if(workerButton)workerButton.textContent='Seleccionar trabajador';loadHistory(1);});
 
 list.addEventListener('click', async (e) => {
   const row = e.target.closest('.task');

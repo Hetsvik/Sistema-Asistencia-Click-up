@@ -65,7 +65,6 @@ export const Tasks = {
 };
 
 export const Catalog = {
-  projects: (params) => request('GET', API.projects, {params}),
   users: (value) => request('GET', API.users, { params: typeof value==='string'?{q:value}:value }),
 };
 
@@ -92,13 +91,6 @@ export const Notifications = {
  list: params => request('GET',API.notifications,{params}),
  read: through_id => request('POST',API.readNotifications,{body:{through_id}}),
  clear: through_id => request('POST',API.clearNotifications,{body:{through_id}}),
-};
-export const Projects = {
- list: params => request('GET',API.projects,{params}),
- create: body => request('POST',API.projects,{body}),
- get: id => request('GET',`${API.projects}/${encodeURIComponent(id)}`),
- update: (id,body) => request('PUT',`${API.projects}/${encodeURIComponent(id)}`,{body}),
- remove: id => request('DELETE',`${API.projects}/${encodeURIComponent(id)}`),
 };
 
 export const Account = {

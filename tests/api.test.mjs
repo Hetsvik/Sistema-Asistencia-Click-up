@@ -89,16 +89,16 @@ test('tareas: aislamiento entre trabajadores y flujo de estados', async () => {
 test('tareas: solo el admin crea; valida datos; marca entrega fuera de plazo', async () => {
   const ana = (await login('TEST001', '1234')).cookie;
   const adm = (await login('TESTADM', 'admin1234', true)).cookie;
-  const base = { trabajador_id: 2, proyecto_id: 1, descripcion: 'Nueva tarea', fecha_entrega: '2999-01-01T10:00' };
+  const base = { trabajador_id: 2, nombre_tarea: 'Tarea nueva', descripcion: 'Nueva tarea', fecha_entrega: '2999-01-01T10:00' };
   assert.equal((await call('POST', '/api/tasks', { cookie: ana, body: base })).status, 403);
   assert.equal((await call('POST', '/api/tasks', { cookie: adm, body: { ...base, fecha_entrega: 'x' } })).status, 400);
   assert.equal((await call('POST', '/api/tasks', { cookie: adm, body: { ...base, trabajador_id: 99 } })).status, 400);
   const ok = await call('POST', '/api/tasks', { cookie: adm, body: base });
   assert.equal(ok.status, 201);
   assert.equal(ok.data.task.prioridad, 'Baja');
-  const nuevo = await call('POST', '/api/tasks', { cookie: adm, body: { ...base, proyecto_id: undefined, proyecto_nuevo: { nombre: 'Obra Z', area: 'Obras' }, fecha_entrega: '2000-01-01T10:00', fecha_inicio: '1999-12-31T10:00' } });
+  const nuevo = await call('POST', '/api/tasks', { cookie: adm, body: { ...base, nombre_tarea: 'Obra Z', fecha_entrega: '2000-01-01T10:00', fecha_inicio: '1999-12-31T10:00' } });
   assert.equal(nuevo.status, 201);
-  assert.equal(nuevo.data.task.proyecto, 'Obra Z');
+  assert.equal(nuevo.data.task.nombre_tarea, 'Obra Z');
   // Nueva regla: la entrega debe pasar por progreso y revisión antes de aprobarse.
   for (const estado of ['En Progreso', 'En revisión']) {
     assert.equal((await call('PUT', `/api/tasks/${nuevo.data.task.id}/status`, { cookie: adm, body: { estado } })).status, 200);

@@ -17,7 +17,7 @@ const [input = 'database/private/schema.original.sql', output = 'database/privat
 const pinsOutput = output.replace(/[^/\\]*$/, 'actualizar_pins.sql');
 
 // Orden que respeta las claves foráneas (D1 siempre las valida).
-const TABLES = ['Empleados', 'Administrador', 'Trabajadores', 'Proyectos', 'Tareas', 'Actividades', 'Archivos',
+const TABLES = ['Empleados', 'Administrador', 'Trabajadores', 'Tareas', 'Actividades', 'Archivos',
   'Asistencia', 'Comentarios_Tarea', 'Evaluaciones_Rendimiento'];
 const PIN_COLUMN = { Administrador: 'PIN_Acceso', Trabajadores: 'PIN_Acceso' };
 const ITERATIONS = 100_000;
@@ -47,8 +47,14 @@ const pinUpdates = [
 ];
 const CODE_COLUMN = { Administrador: 'Codigo_Administrador', Trabajadores: 'Codigo_Trabajador' };
 for (const table of TABLES) {
-  const cols = db.prepare(`PRAGMA table_xinfo(${table})`).all().filter((c) => c.hidden === 0).map((c) => c.name);
-  const rows = db.prepare(`SELECT ${cols.map((c) => `"${c}"`).join(', ')} FROM ${table} ORDER BY 1`).all();
+  const sourceCols = db.prepare(`PRAGMA table_xinfo(${table})`).all().filter((c) => c.hidden === 0).map((c) => c.name);
+  const cols = table === 'Tareas' && sourceCols.includes('ID_Proyecto')
+    ? sourceCols.filter((c) => c !== 'ID_Proyecto').concat('Nombre_Tarea')
+    : sourceCols;
+  let rows = table === 'Tareas' && sourceCols.includes('ID_Proyecto')
+    ? db.prepare('SELECT T.*,P.Nombre_Proyecto AS Nombre_Tarea FROM Tareas T LEFT JOIN Proyectos P ON P.ID_Proyecto=T.ID_Proyecto ORDER BY T.ID_Tarea').all()
+    : db.prepare(`SELECT ${sourceCols.map((c) => `"${c}"`).join(', ')} FROM ${table} ORDER BY 1`).all();
+  if (table === 'Tareas' && sourceCols.includes('ID_Proyecto')) rows = rows.map(({ID_Proyecto, ...row}) => row);
   counts[table] = rows.length;
   if (!rows.length) continue;
   lines.push(`-- ${table} (${rows.length})`);

@@ -13,7 +13,7 @@ export function toXLSX(sheets){
 export function reportSheets(d){
  const p=d.puntualidad;
  return [{name:'Resumen',rows:[['Métrica','Valor'],['Trabajador',d.trabajador?.nombre||'Todos / mi cuenta'],['Desde',d.periodo.desde],['Hasta',d.periodo.hasta],['Zona horaria','America/Lima'],['Filtro prioridad',d.filtros?.prioridad||'Todas'],['Tolerancia (min)',10],['Puntualidad (%)',p.porcentaje??'Sin datos'],['Tramos evaluados',p.evaluados],['Faltas por tramo',p.faltas],['Faltas sin entrada',p.sin_marca],['Tareas',d.tareas.total],['Completadas',d.tareas.completadas],...d.prioridades.map(v=>['Prioridad '+v.prioridad,v.total])]},
- {name:'Tareas',rows:[['ID trabajador','ID tarea','Trabajador','Proyecto','Descripción','Fecha asignación','Fecha entrega Perú','Estado','Prioridad'],...(d.tareas_detalle||[]).map(t=>[t.trabajador_id,t.tarea_id,t.nombre,t.proyecto,t.descripcion,t.fecha,t.entrega,t.estado,t.prioridad])]},
+ {name:'Tareas',rows:[['ID trabajador','ID tarea','Trabajador','Nombre de la tarea','Descripción','Fecha asignación','Fecha entrega Perú','Estado','Prioridad'],...(d.tareas_detalle||[]).map(t=>[t.trabajador_id,t.tarea_id,t.nombre,t.nombre_tarea,t.descripcion,t.fecha,t.entrega,t.estado,t.prioridad])]},
  {name:'Puntualidad',rows:[['ID trabajador','Trabajador','Fecha Perú','Tramo','Inicio previsto','Fin previsto','Entrada Perú','Salida Perú','Evaluado','Puntual','Falta','Motivo'],...(d.puntualidad_detalle||[]).map(t=>[t.trabajador_id,t.nombre,t.fecha,t.tramo,t.inicio,t.fin,t.entrada,t.salida,Number(t.evaluado),Number(t.puntual),Number(t.falta),t.motivo])]}];
 }
 export function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}

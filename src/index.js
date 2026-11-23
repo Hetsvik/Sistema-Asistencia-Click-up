@@ -12,7 +12,6 @@ import * as attendance from './routes/attendance.js';
 import * as tasks from './routes/tasks.js';
 import * as reports from './routes/reports.js';
 import * as account from './routes/account.js';
-import * as projects from './routes/projects.js';
 import * as notifications from './routes/notifications.js';
 import * as users from './routes/users.js';
 import * as areas from './routes/areas.js';
@@ -68,11 +67,6 @@ router.post('/api/tasks/:id/attachments',attachments.send,{auth:'any'});
 router.get('/api/tasks/:id/attachments/:attachment/download',attachments.download,{auth:'any'});
 
 // Catálogos
-router.get('/api/projects', projects.list, { auth: 'admin' });
-router.post('/api/projects', projects.create, { auth: 'admin' });
-router.get('/api/projects/:id', projects.detail, { auth: 'admin' });
-router.put('/api/projects/:id', projects.update, { auth: 'admin' });
-router.delete('/api/projects/:id', projects.remove, { auth: 'admin' });
 router.get('/api/account', account.detail, { auth: 'any' });
 router.put('/api/account', account.update, { auth: 'any' });
 router.put('/api/account/password', account.password, { auth: 'any' });

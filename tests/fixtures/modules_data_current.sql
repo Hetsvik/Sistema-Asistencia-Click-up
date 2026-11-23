@@ -16,16 +16,11 @@ INSERT OR IGNORE INTO Trabajadores (ID_Trabajador, ID_Empleado, Rol_Cargo, Codig
   (2, 3, 'Ingeniero',   'TEST002', 'pbkdf2$100000$AwMDAwMDAwMDAwMDAwMDAw==$GkTu6FLrsRtwi7gqku5OJqEuTQUU2vNDIAHeQrWbDao=', 1),
   (3, 4, 'Abogada',     'TEST003', 'pbkdf2$100000$AwMDAwMDAwMDAwMDAwMDAw==$GkTu6FLrsRtwi7gqku5OJqEuTQUU2vNDIAHeQrWbDao=', 1);
 
-INSERT OR IGNORE INTO Proyectos (ID_Proyecto, Nombre_Proyecto, Area_Departamento) VALUES
-  (1, 'Proyecto Casuarina', 'Arquitectura'),
-  (2, 'Proyecto Cisneros',  'Ingeniería'),
-  (3, 'Contratos 2026',     'Legal');
-
-INSERT OR IGNORE INTO Tareas (ID_Tarea, ID_Trabajador, ID_Administrador_Asignador, ID_Proyecto, Fecha, Fecha_Inicio, Fecha_Entrega, Descripcion_Tarea, Estado_Tarea) VALUES
-  (1, 1, 1, 1, date('now'),        datetime('now','-1 day'),  datetime('now','+5 hours'), 'Planos de planta baja', 'Asignada'),
-  (2, 1, 1, 2, date('now'),        datetime('now','-2 day'),  datetime('now','+2 days'),  'Memoria descriptiva',   'En Progreso'),
-  (3, 2, 1, 2, date('now'),        datetime('now','-3 day'),  datetime('now','+9 days'),  'Cálculo estructural',   'Asignada'),
-  (4, 3, 1, 3, date('now','-3 day'), datetime('now','-3 day'), datetime('now','-1 day'),  'Revisión de contratos', 'Completada');
+INSERT OR IGNORE INTO Tareas (ID_Tarea, ID_Trabajador, ID_Administrador_Asignador, Nombre_Tarea, Fecha, Fecha_Inicio, Fecha_Entrega, Descripcion_Tarea, Estado_Tarea) VALUES
+  (1, 1, 1, 'Planos de arquitectura', date('now'),        datetime('now','-1 day'),  datetime('now','+5 hours'), 'Planos de planta baja', 'Asignada'),
+  (2, 1, 1, 'Diseño estructural', date('now'),        datetime('now','-2 day'),  datetime('now','+2 days'),  'Memoria descriptiva',   'En Progreso'),
+  (3, 2, 1, 'Diseño estructural', date('now'),        datetime('now','-3 day'),  datetime('now','+9 days'),  'Cálculo estructural',   'Asignada'),
+  (4, 3, 1, 'Revisión de contratos', date('now','-3 day'), datetime('now','-3 day'), datetime('now','-1 day'),  'Revisión de contratos', 'Completada');
 
 INSERT OR IGNORE INTO Asistencia (ID_Trabajador, Fecha_Entrada, Fecha_Salida) VALUES
   (1, date('now','-1 day') || ' 09:05:00', date('now','-1 day') || ' 17:30:00'),

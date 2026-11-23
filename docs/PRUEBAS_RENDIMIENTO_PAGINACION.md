@@ -6,7 +6,7 @@
 - Incluyen 18 casos nuevos de paginación/rendimiento más las regresiones previas; tres expectativas anteriores se adaptaron al nuevo contrato de paginación (no se permite ya descargar todas las tareas del calendario en una respuesta).
 - Verificación local de las migraciones 0001–0010 con Wrangler/D1; 0010 aplicada y repetible sin alterar filas históricas.
 - `wrangler deploy --dry-run` correcto. No se realizó ningún despliegue ni cambio remoto.
-- Diez comprobaciones de navegador con cuentas y datos ficticios: enlace a página, siguiente, Atrás, recarga, filtros/tamaño, formularios con opciones limitadas, diaria/historial, calendario/agenda, proyectos/anuncios, reportes/gráfico, caché/Server-Timing/no-store, vista móvil y ausencia de sondeo cada tres segundos.
+- Diez comprobaciones de navegador con cuentas y datos ficticios: enlace a página, siguiente, Atrás, recarga, filtros/tamaño, formularios con opciones limitadas, diaria/historial, calendario/agenda, anuncios, reportes/gráfico, caché/Server-Timing/no-store, vista móvil y ausencia de sondeo cada tres segundos.
 - No se debilitó CSP para las pruebas: el controlador de pruebas se adaptó para no depender de eval. Fuentes externas se sustituyeron por CSS vacío en el navegador de QA para no depender de red; esto no es una medición del rendimiento real de Google Fonts.
 
 ## Evidencia de reducción de datos

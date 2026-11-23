@@ -6,8 +6,8 @@ import {generateDeadlineAlarms} from '../src/lib/deadline-alarms.js';
 import {handleApi} from './legacy-test-adapter.mjs';
 import {notificationText} from '../frontend/js/notifications.js';
 import {noticeVisible} from '../frontend/js/preferences.js';
-function setup(t){const db=createTestDb({seed:false});db.raw.exec(readFileSync(new URL('./fixtures/modules_data.sql',import.meta.url),'utf8'));t.after(()=>db.raw.close());db.raw.exec('DELETE FROM Comentarios_Tarea; DELETE FROM Tareas;');
- const insert=(worker,fecha,estado='Asignada')=>db.raw.prepare("INSERT INTO Tareas(ID_Trabajador,ID_Administrador_Asignador,ID_Proyecto,Fecha,Fecha_Inicio,Fecha_Entrega,Descripcion_Tarea,Estado_Tarea) VALUES(?,1,1,'2030-01-01','2030-01-01 08:00:00',?,'Planos',?)").run(worker,fecha,estado).lastInsertRowid;
+function setup(t){const db=createTestDb({seed:false});db.raw.exec(readFileSync(new URL('./fixtures/modules_data_current.sql',import.meta.url),'utf8'));t.after(()=>db.raw.close());db.raw.exec('DELETE FROM Comentarios_Tarea; DELETE FROM Tareas;');
+ const insert=(worker,fecha,estado='Asignada')=>db.raw.prepare("INSERT INTO Tareas(ID_Trabajador,ID_Administrador_Asignador,Nombre_Tarea,Fecha,Fecha_Inicio,Fecha_Entrega,Descripcion_Tarea,Estado_Tarea) VALUES(?,1,1,'2030-01-01','2030-01-01 08:00:00',?,'Planos',?)").run(worker,fecha,estado).lastInsertRowid;
  const when=h=>new Date(`2030-01-01T${h}:00-05:00`).getTime();
  const rows=()=>db.raw.prepare('SELECT ID_Tarea,Minutos,ID_Empleado FROM Alarmas_Vencimiento ORDER BY ID_Tarea,Minutos DESC').all();return {db,insert,when,rows};}
 test('genera cinco umbrales una vez y solo en el minuto correspondiente',async t=>{const {db,insert,when,rows}=setup(t);const id=insert(1,'2030-01-01 10:00:00');for(const h of ['09:00','09:30','09:50','09:55','09:59']){await generateDeadlineAlarms(db,when(h));await generateDeadlineAlarms(db,when(h));}assert.deepEqual(rows().map(x=>x.Minutos),[60,30,10,5,1]);assert.equal(rows().every(x=>x.ID_Tarea===id),true);assert.equal(db.raw.prepare("SELECT COUNT(*) n FROM Notificaciones_Tarea WHERE Tipo LIKE 'Vencimiento:%'").get().n,5);});

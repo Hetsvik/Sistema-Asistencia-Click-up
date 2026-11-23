@@ -29,7 +29,7 @@
 - Cabeceras CSP/nosniff/no-framing en respuestas del Worker.
 - Historia de 121 mensajes recuperada por páginas sin pérdidas; incremental de más de 50 mensajes; aislamiento entre trabajadores y límite de 20 envíos/minuto.
 - Limpieza de sesiones y contadores caducados sin borrar vigentes.
-- La regresión mantiene pruebas de autorización, validación, cuotas, reintentos, compensaciones y descarga R2, además de asistencia, horarios, proyectos, reportes y notificaciones.
+- La regresión mantiene pruebas de autorización, validación, cuotas, reintentos, compensaciones y descarga R2, además de asistencia, horarios, tareas, reportes y notificaciones.
 
 ## Navegador local con Worker + D1 + R2
 

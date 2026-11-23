@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,readdirSync} from 'node:fs';import {DatabaseSync} from 'node:sqlite';
 import worker,{handleApi} from '../src/index.js';import {createTestDb} from './d1-shim.mjs';import {verifyPin,hashPin} from '../src/lib/security.js';import {signSession} from '../src/lib/session.js';import {cleanupSecurity} from '../src/lib/rate-limit.js';
 const adminEmail='admin.administrador@arqyservgen.com',anaEmail='user.ana@arqyservgen.com';
-function setup(t){const db=createTestDb({seed:false});db.raw.exec(readFileSync(new URL('./fixtures/modules_data.sql',import.meta.url),'utf8'));t.after(()=>db.raw.close());const env={DB:db,SESSION_SECRET:'seguridad-nueva-clave-ficticia-con-32-caracteres',TIMEZONE:'America/Lima'};
+function setup(t){const db=createTestDb({seed:false});db.raw.exec(readFileSync(new URL('./fixtures/modules_data_current.sql',import.meta.url),'utf8'));t.after(()=>db.raw.close());const env={DB:db,SESSION_SECRET:'seguridad-nueva-clave-ficticia-con-32-caracteres',TIMEZONE:'America/Lima'};
  const call=async(method,path,body,cookie,headers={})=>{const r=await handleApi(new Request('https://erp.example'+path,{method,headers:{...(body?{'Content-Type':'application/json'}:{}),...(cookie?{Cookie:cookie}:{}),'CF-Connecting-IP':'192.0.2.1',...headers},body:body?JSON.stringify(body):undefined}),env);return {status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0],headers:r.headers};};
  const login=async(email=adminEmail,pin='admin1234',ip='192.0.2.1')=>call('POST','/api/auth/login',{correo:email,pin},null,{'CF-Connecting-IP':ip});
  return {db,env,call,login};}

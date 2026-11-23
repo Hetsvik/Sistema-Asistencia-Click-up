@@ -22,7 +22,7 @@ No es una prueba de carga masiva ni una garantía sobre credenciales/cuotificaci
 ## Lista breve después de instalar
 1. Admin → Asistencia: ver personas sin marcar y cambiar a Historial sin salir de la pantalla.
 2. Trabajador → Asistencia: solo sus datos, entrada/salida sin recargar. Admin observa el cambio en unos 3 segundos mientras su vista está visible.
-3. Configuración → modo claro y tamaño de texto: recorrer Inicio, Tareas, Calendario, Proyectos/Usuarios (admin), Asistencia y Reportes. Abrir otra pestaña de la misma cuenta.
+3. Configuración → modo claro y tamaño de texto: recorrer Inicio, Tareas, Calendario, Usuarios (admin), Asistencia y Reportes. Abrir otra pestaña de la misma cuenta.
 4. Reportes: seleccionar una persona, cambiar prioridad y comprobar que el porcentaje de asistencia no cambia por esa prioridad. Probar los tres gráficos.
 5. Descargar PNG, XLSX y un CSV; abrir el XLSX o importarlo en Power BI.
 6. Comprobar tolerancia en entorno local/pruebas: horario 08:00, entrada 08:10:00 puntual, 08:10:01 una falta; ausencia tras el límite también una, posterior entrada tardía no suma otra.

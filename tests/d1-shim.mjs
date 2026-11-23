@@ -17,7 +17,11 @@ class Statement {
 export function createTestDb({ seed = true, root = new URL('..', import.meta.url).pathname } = {}) {
   const db = new DatabaseSync(':memory:');
   const dir = join(root, 'database/migrations');
-  for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql')).sort()) db.exec(readFileSync(join(dir, f), 'utf8'));
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql')).sort()) {
+    db.exec('BEGIN');
+    try { db.exec(readFileSync(join(dir, f), 'utf8')); db.exec('COMMIT'); }
+    catch (error) { db.exec('ROLLBACK'); throw error; }
+  }
   if (seed) db.exec(readFileSync(join(root, 'tests/fixtures/test_data.sql'), 'utf8'));
   return {
     raw: db, prepare: (sql) => new Statement(db, sql),

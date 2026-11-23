@@ -6,7 +6,7 @@ class FakeR2{
  async get(k){const v=this.objects.get(k);return v?{body:v}:null;}
  async delete(keys){if(this.failDelete)throw Error('Fallo delete simulado');for(const k of Array.isArray(keys)?keys:[keys])this.objects.delete(k);}
 }
-function setup(t){const db=createTestDb({seed:false});db.raw.exec(readFileSync(new URL('./fixtures/modules_data.sql',import.meta.url),'utf8'));t.after(()=>db.raw.close());const r2=new FakeR2(),env={DB:db,ATTACHMENTS:r2,SESSION_SECRET:'secreto-ficticio-r2-test'};
+function setup(t){const db=createTestDb({seed:false});db.raw.exec(readFileSync(new URL('./fixtures/modules_data_current.sql',import.meta.url),'utf8'));t.after(()=>db.raw.close());const r2=new FakeR2(),env={DB:db,ATTACHMENTS:r2,SESSION_SECRET:'secreto-ficticio-r2-test'};
  const call=async(method,path,body,cookie,extra={})=>handleApi(new Request('http://localhost'+path,{method,headers:{...(body&&!(body instanceof FormData)?{'Content-Type':'application/json'}:{}),...(cookie?{Cookie:cookie}:{}),...extra},body:body instanceof FormData?body:body?JSON.stringify(body):undefined}),env);
  const login=async(code='TESTADM')=>(await call('POST','/api/auth/login',{codigo:code,pin:code==='TESTADM'?'admin1234':'1234',es_admin:code==='TESTADM'})).headers.get('set-cookie').split(';')[0];return {db,r2,env,call,login};}
 const form=(files=[['nota.txt','Hola mundo']],message='Planos actualizados',client='identificador-prueba-0001')=>{const f=new FormData();f.append('client_id',client);f.append('mensaje',message);for(const [name,body] of files)f.append('files',new Blob([body]),name);return f;};

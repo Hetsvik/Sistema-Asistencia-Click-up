@@ -63,7 +63,7 @@ export async function summary({ env, user, url, tz }) {
   let tareas_detalle;
   if(p.get('detalle')==='1'){
    if(filtered.total>10000||puntualidad.detalle.length>50000)throw new HttpError(413,'Demasiados datos para una exportación. Selecciona un trabajador y un periodo menor.');
-   tareas_detalle=(await env.DB.prepare(`SELECT T.ID_Tarea tarea_id,T.ID_Trabajador trabajador_id,E.Nombre_Completo nombre,P.Nombre_Proyecto proyecto,T.Descripcion_Tarea descripcion,T.Fecha fecha,T.Fecha_Entrega entrega,T.Estado_Tarea estado,COALESCE(D.Prioridad,'Sin prioridad') prioridad FROM Tareas T JOIN Trabajadores W ON W.ID_Trabajador=T.ID_Trabajador JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado JOIN Proyectos P ON P.ID_Proyecto=T.ID_Proyecto LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere} ORDER BY T.Fecha,T.ID_Tarea`).bind(...taskBinds).all()).results;
+   tareas_detalle=(await env.DB.prepare(`SELECT T.ID_Tarea tarea_id,T.ID_Trabajador trabajador_id,E.Nombre_Completo nombre,T.Nombre_Tarea nombre_tarea,T.Descripcion_Tarea descripcion,T.Fecha fecha,T.Fecha_Entrega entrega,T.Estado_Tarea estado,COALESCE(D.Prioridad,'Sin prioridad') prioridad FROM Tareas T JOIN Trabajadores W ON W.ID_Trabajador=T.ID_Trabajador JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=T.ID_Tarea WHERE ${taskWhere} ORDER BY T.Fecha,T.ID_Tarea`).bind(...taskBinds).all()).results;
   }
   return json({
     periodo: { clave: periodo, ...rango }, filtros:{prioridad},

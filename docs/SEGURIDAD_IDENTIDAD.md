@@ -1,3 +1,5 @@
+> **Nota de versión:** Esta guía cubre la migración 0009. El retiro posterior del módulo de proyectos está documentado en README y en `0019_tareas_sin_proyectos.sql`; esa migración elimina las tablas y relaciones de proyectos.
+
 # Actualización: seguridad e identidad corporativa
 
 Base: última entrega de adjuntos R2, con migraciones 0001–0008 ya instaladas. Despliegue con `wrangler deploy`, sin `--env`. Se conserva Workers + frontend estático + D1 + R2. No se introduce Java, un proveedor de correo ni un servicio externo.

@@ -40,7 +40,7 @@ function render() {
   list.innerHTML = tasks.map((t) => {
     const a = actionFor(t);
     return `<article class="task" data-id="${t.id}" tabindex="0">
-      <span class="name">${esc(t.proyecto)}${isAdmin ? `<small>${esc(t.trabajador)}</small>` : ''}</span>
+      <span class="name">${esc(t.nombre_tarea)}${isAdmin ? `<small>${esc(t.trabajador)}</small>` : ''}</span>
       <span class="desc" title="${esc(t.descripcion)}">${esc(truncate(t.descripcion, 50))}</span>
       <span class="date">${fmtDate(t.fecha_entrega)}</span>
       <span class="prio">${badgePrioridad(t.prioridad)}</span>
@@ -89,17 +89,18 @@ async function openEdit(id){
  if(!parts)return toast('La fecha de entrega no es válida.','error');
  const hour=Number(parts[2]);const selected=task.prioridad_manual||task.prioridad||'Media';
  const modal=openModal({title:'Editar tarea',html:`<form id="edit-task" class="form-grid">
+ <label class="full">Nombre de la tarea<input class="input plain" name="nombre_tarea" maxlength="120" required value="${esc(task.nombre_tarea)}"></label>
  <label class="full">Descripción<textarea class="input plain" name="descripcion" rows="3" maxlength="500" required>${esc(task.descripcion)}</textarea></label>
  <label class="full">Prioridad<select class="input plain" name="prioridad">${['Alta','Media','Baja'].map(x=>`<option ${x===selected?'selected':''}>${x}</option>`).join('')}</select></label>
- <div id="edit-task-datetime" class="full"></div><p class="muted full">El trabajador asignado, el proyecto y la conversación no se modifican aquí.</p>
+ <div id="edit-task-datetime" class="full"></div><p class="muted full">El trabajador asignado y la conversación no se modifican aquí.</p>
  <p class="form-message is-error full" id="edit-task-error" role="alert" hidden></p><div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button><button type="submit" class="btn">Guardar cambios</button></div></form>`});
  const form=$('#edit-task',modal.el),picker=initDateTimePicker($('#edit-task-datetime',form),{initialDate:parts[1],hour:hour%12||12,minute:Number(parts[3]),period:hour>=12?'PM':'AM',label:'Fecha y hora de entrega'});
  form.addEventListener('submit',e=>{e.preventDefault();withBusy($('[type=submit]',form),async()=>{try{
-  await Tasks.edit(id,{descripcion:form.elements.descripcion.value,prioridad:form.elements.prioridad.value,fecha_entrega:picker.getValue(),expected:{descripcion:task.descripcion,fecha_entrega:task.fecha_entrega,prioridad_manual:task.prioridad_manual??null}});
+  await Tasks.edit(id,{nombre_tarea:form.elements.nombre_tarea.value,descripcion:form.elements.descripcion.value,prioridad:form.elements.prioridad.value,fecha_entrega:picker.getValue(),expected:{nombre_tarea:task.nombre_tarea,descripcion:task.descripcion,fecha_entrega:task.fecha_entrega,prioridad_manual:task.prioridad_manual??null}});
   modal.close();toast('Tarea actualizada.','success');await load();
  }catch(err){const box=$('#edit-task-error',form);box.textContent=err.message;box.hidden=false;}});});
 }
-function confirmRemove(task){const modal=openModal({title:'Eliminar tarea',html:`<p>¿Eliminar la tarea de <strong>${esc(task.trabajador)}</strong> en ${esc(task.proyecto)}?</p><p>Dejará de aparecer en tareas, reportes y alarmas. El historial y los adjuntos se conservarán de forma privada; no se borrarán definitivamente.</p><p class="form-message is-error" id="delete-task-error" hidden role="alert"></p><div class="modal-actions"><button type="button" class="btn outline" data-close>Cancelar</button><button type="button" class="btn" id="delete-task-confirm">Eliminar tarea</button></div>`});
+function confirmRemove(task){const modal=openModal({title:'Eliminar tarea',html:`<p>¿Eliminar la tarea <strong>${esc(task.nombre_tarea)}</strong> de <strong>${esc(task.trabajador)}</strong>?</p><p>Dejará de aparecer en tareas, reportes y alarmas. El historial y los adjuntos se conservarán de forma privada; no se borrarán definitivamente.</p><p class="form-message is-error" id="delete-task-error" hidden role="alert"></p><div class="modal-actions"><button type="button" class="btn outline" data-close>Cancelar</button><button type="button" class="btn" id="delete-task-confirm">Eliminar tarea</button></div>`});
  $('#delete-task-confirm',modal.el).onclick=e=>withBusy(e.currentTarget,async()=>{try{await Tasks.remove(task.id);modal.close();toast('Tarea eliminada de las vistas.','success');await load();}catch(err){const box=$('#delete-task-error',modal.el);box.hidden=false;box.textContent=err.message;}});
 }
 
@@ -128,14 +129,13 @@ async function openDetail(id) {
   let timer,attachments,closed=false,painting=false,sending=false;const fileMap=new Map();
   const leaveGuard=e=>{if(sending){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',leaveGuard);
   const modal = openModal({
-    title: `Tarea · ${task.proyecto}`,
+    title: `Tarea · ${task.nombre_tarea}`,
     wide: true,
     onClose: () => {window.removeEventListener('beforeunload',leaveGuard);closed=true;timer?.stop();attachments?.destroy();},
     html: `
       <dl class="detail">
         <div><dt>Descripción</dt><dd>${esc(task.descripcion)}</dd></div>
         <div><dt>Asignada a</dt><dd>${esc(task.trabajador)}</dd></div>
-        <div><dt>Área</dt><dd>${esc(task.area)}</dd></div>
         <div><dt>Inicio</dt><dd>${fmtDateTime(task.fecha_inicio)}</dd></div>
         <div><dt>Entrega</dt><dd>${fmtDateTime(task.fecha_entrega)}</dd></div>
         <div><dt>Estado</dt><dd id="d-estado">${badgeEstado(task.estado)} ${badgePrioridad(task.prioridad)}</dd></div>
@@ -218,17 +218,14 @@ async function openDetail(id) {
 
 // ---------- Crear tarea (admin) ----------
 async function openCreate() {
-  let closed=false, workerSerial=0, projectSerial=0;
+  let closed=false, workerSerial=0;
   const chosen=new Map(),workers=new Map();
   const modal=openModal({title:'Añadir tarea',wide:true,onClose:()=>{closed=true;},html:`<form id="new-task" class="form-grid">
     <label class="full">Área de trabajo<select class="input plain" id="pick-area"><option value="">Selecciona un área…</option></select></label>
     <label>Buscar trabajador<input type="search" class="input plain" id="pick-worker" placeholder="Nombre o código" disabled></label>
     <label>Trabajador<select class="input plain" id="task-worker" disabled><option value="">Selecciona un área primero…</option></select></label>
     <div class="full"><button type="button" class="btn outline sm" id="add-worker" disabled>+ Añadir trabajador</button><p class="muted" id="worker-hint" role="status">Selecciona un área para ver sus trabajadores.</p><div id="chosen-workers" class="chosen-workers"></div></div>
-    <label>Buscar proyecto<input type="search" class="input plain" id="pick-project" placeholder="Nombre, área o descripción"></label>
-    <label>Proyecto<select class="input plain" name="proyecto_id" required><option value="">Selecciona un proyecto…</option></select></label>
-    <p class="muted full" id="project-hint" role="status"></p>
-    <a class="project-form-link full" href="/admin/proyectos/nuevo">+ Crear un proyecto antes de asignar la tarea</a>
+    <label class="full">Nombre de la tarea<input class="input plain" name="nombre_tarea" maxlength="120" required></label>
     <label class="full">Descripción<textarea class="input plain" name="descripcion" rows="3" maxlength="500" required></textarea></label>
     <label class="full">Prioridad<select class="input plain" name="prioridad" required><option>Alta</option><option selected>Media</option><option>Baja</option></select></label>
     <div id="task-datetime" class="full"></div><p class="form-message is-error full" id="f-error" hidden role="alert"></p>
@@ -236,7 +233,7 @@ async function openCreate() {
     <div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button><button type="submit" class="btn">Crear tareas</button></div></form>`});
   modal.el.classList.add('task-create-wide');
   const form=$('#new-task',modal.el),picker=initDateTimePicker($('#task-datetime',form),{label:'Fecha y hora de entrega'});
-  const area=$('#pick-area',form),worker=$('#task-worker',form),workerSearch=$('#pick-worker',form),projectSearch=$('#pick-project',form),project=form.elements.proyecto_id,add=$('#add-worker',form),hint=$('#worker-hint',form),error=$('#f-error',form);
+  const area=$('#pick-area',form),worker=$('#task-worker',form),workerSearch=$('#pick-worker',form),add=$('#add-worker',form),hint=$('#worker-hint',form),error=$('#f-error',form);
   const showError=e=>{error.textContent=e.message||e;error.hidden=false;};
   const renderChosen=()=>{const box=$('#chosen-workers',form);box.innerHTML=[...chosen.values()].map(w=>`<span class="chosen-worker">${esc(w.nombre)} · ${esc(w.area)} <button type="button" data-remove-worker="${w.id}" aria-label="Quitar ${esc(w.nombre)}">×</button></span>`).join('');};
   $('#chosen-workers',form).addEventListener('click',e=>{const b=e.target.closest('[data-remove-worker]');if(b){chosen.delete(Number(b.dataset.removeWorker));renderChosen();}});
@@ -251,14 +248,11 @@ async function openCreate() {
   }
   area.onchange=()=>{workerSearch.value='';loadWorkers();};workerSearch.addEventListener('input',debounce(loadWorkers,300));worker.onchange=()=>{add.disabled=!worker.value;};
   add.onclick=()=>{const w=workers.get(Number(worker.value));if(!w)return;if(chosen.has(w.id))return showError('Ese trabajador ya fue añadido.');if(chosen.size>=50)return showError('Puedes asignar hasta 50 trabajadores por vez.');error.hidden=true;chosen.set(w.id,{...w,area:area.selectedOptions[0].textContent});renderChosen();area.value='';workerSearch.value='';loadWorkers();area.focus();};
-  async function loadProjects(){const seq=++projectSerial;try{const d=await Catalog.projects({q:projectSearch.value.trim(),page:1,limit:100});if(closed||seq!==projectSerial)return;const current=project.value,old=project.selectedOptions[0]?.textContent;project.replaceChildren(new Option('Selecciona un proyecto…',''),...d.projects.map(p=>new Option(`${p.nombre} · ${p.area}`,String(p.id))));if(current&&!d.projects.some(p=>String(p.id)===current))project.add(new Option(old,current));project.value=current;$('#project-hint',form).textContent=d.has_more?'Se muestran los primeros 100. Escribe para encontrar otros proyectos.':'';}catch(e){if(!closed&&seq===projectSerial)showError(e);}}
-  projectSearch.addEventListener('input',debounce(loadProjects,300));
   try{const d=await WorkAreas.list();if(closed)return;for(const a of d.areas)area.add(new Option(a.nombre,String(a.id)));area.add(new Option('Sin área asignada (usuarios anteriores)','sin-area'));if(d.has_more)showError('Hay demasiadas áreas para mostrarlas. Contacta al soporte.');}catch(e){showError(e);}
-  loadProjects();
   form.addEventListener('submit',async e=>{
     e.preventDefault();error.hidden=true;if(!chosen.size)return showError('Añade al menos un trabajador.');
     let entrega;try{entrega=picker.getValue();}catch(err){return showError(err);}
-    const body={trabajador_ids:[...chosen.keys()],descripcion:form.elements.descripcion.value,fecha_entrega:entrega,prioridad:form.elements.prioridad.value,proyecto_id:Number(project.value)||null};
+    const body={trabajador_ids:[...chosen.keys()],nombre_tarea:form.elements.nombre_tarea.value,descripcion:form.elements.descripcion.value,fecha_entrega:entrega,prioridad:form.elements.prioridad.value};
     await withBusy($('[type=submit]',form),async()=>{try{const r=await Tasks.create(body);modal.close();toast(r.message,'success');await load();}catch(err){showError(err);}});
   });
 }

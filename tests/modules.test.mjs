@@ -7,7 +7,7 @@ import { nowLocal } from '../src/lib/dates.js';
 
 function setup(t){
  const db=createTestDb({seed:false});
- db.raw.exec(readFileSync(new URL('./fixtures/modules_data.sql',import.meta.url),'utf8'));
+ db.raw.exec(readFileSync(new URL('./fixtures/modules_data_current.sql',import.meta.url),'utf8'));
  const env={DB:db,SESSION_SECRET:'secreto-ficticio-para-pruebas-modulos',TIMEZONE:'America/Bogota'};
  t.after(()=>env.DB.raw.close());
  const call=async(method,path,body,cookie)=>{

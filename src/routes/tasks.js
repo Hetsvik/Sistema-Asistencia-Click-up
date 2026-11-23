@@ -10,12 +10,10 @@ const LATE_TAG = '[ENTREGADO FUERA DE PLAZO]';
 
 const SELECT = `
   SELECT t.ID_Tarea AS id, t.ID_Trabajador AS trabajador_id, e.Nombre_Completo AS trabajador,
-         t.ID_Proyecto AS proyecto_id, p.Nombre_Proyecto AS proyecto, p.Area_Departamento AS area,
-         t.Descripcion_Tarea AS descripcion, t.Fecha AS fecha, t.Fecha_Inicio AS fecha_inicio,
+         t.Nombre_Tarea AS nombre_tarea, t.Descripcion_Tarea AS descripcion, t.Fecha AS fecha, t.Fecha_Inicio AS fecha_inicio,
          t.Fecha_Entrega AS fecha_entrega, t.Estado_Tarea AS estado, t.Observaciones AS observaciones, D.Prioridad AS prioridad_manual
   FROM Tareas t
   LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=t.ID_Tarea
-  JOIN Proyectos p ON p.ID_Proyecto = t.ID_Proyecto
   JOIN Trabajadores w ON w.ID_Trabajador = t.ID_Trabajador
   JOIN Empleados e ON e.ID_Empleado = w.ID_Empleado`;
 
@@ -47,7 +45,7 @@ export async function list({ env, user, url, tz }) {
     add('t.Estado_Tarea = ?', estado);
   }
   const q = (p.get('q') ?? '').trim().slice(0, 60);
-  if (q) add('(p.Nombre_Proyecto LIKE ? OR t.Descripcion_Tarea LIKE ? OR e.Nombre_Completo LIKE ?)', `%${q}%`, `%${q}%`, `%${q}%`);
+  if (q) add('(t.Nombre_Tarea LIKE ? OR t.Descripcion_Tarea LIKE ? OR e.Nombre_Completo LIKE ?)', `%${q}%`, `%${q}%`, `%${q}%`);
 
   const calendar = p.get('calendar');
   const notifications = p.get('notifications');
@@ -101,6 +99,7 @@ export async function create({ request, env, user, tz }) {
    if(!worker)throw new HttpError(400,'Un trabajador no existe o está inactivo.');
   }
 
+  const nombre = text(b.nombre_tarea, { field: 'El nombre de la tarea', max: 120 });
   const descripcion = text(b.descripcion, { field: 'La descripción', max: 500 });
   const entrega = normalizeDateTime(b.fecha_entrega);
   if (!entrega) throw new HttpError(400, 'La fecha de entrega no es válida.');
@@ -108,24 +107,10 @@ export async function create({ request, env, user, tz }) {
   if (!inicio) throw new HttpError(400, 'La fecha de inicio no es válida.');
   if (toMs(entrega) < toMs(inicio)) throw new HttpError(400, 'La entrega no puede ser anterior al inicio.');
 
-  let proyectoId = intParam(b.proyecto_id, { min: 1 });
-  if (proyectoId) {
-    if (!(await env.DB.prepare('SELECT 1 AS ok FROM Proyectos P WHERE P.ID_Proyecto = ? AND NOT EXISTS(SELECT 1 FROM Proyectos_Control C WHERE C.ID_Proyecto=P.ID_Proyecto AND C.Eliminado_En IS NOT NULL)').bind(proyectoId).first())) {
-      throw new HttpError(400, 'El proyecto no existe.');
-    }
-  } else if (b.proyecto_nuevo && typeof b.proyecto_nuevo === 'object') {
-    const nombre = text(b.proyecto_nuevo.nombre, { field: 'El nombre del proyecto', max: 120 });
-    const area = text(b.proyecto_nuevo.area, { field: 'El área', max: 80 });
-    const [res] = await env.DB.batch([env.DB.prepare('INSERT INTO Proyectos (Nombre_Proyecto, Area_Departamento) VALUES (?, ?)').bind(nombre, area),env.DB.prepare('INSERT INTO Proyectos_Detalle(ID_Proyecto,Descripcion,Fecha_Programada) VALUES(last_insert_rowid(),?,?)').bind('',nowLocal('America/Lima').fechaHora)]);
-    proyectoId = res.meta.last_row_id;
-  } else {
-    throw new HttpError(400, 'Selecciona o crea un proyecto.');
-  }
-
   const statements=[];
   for(const trabajadorId of workerIds){
-    statements.push(env.DB.prepare(`INSERT INTO Tareas (ID_Trabajador,ID_Administrador_Asignador,ID_Proyecto,Fecha,Fecha_Inicio,Fecha_Entrega,Descripcion_Tarea)
-      VALUES ((SELECT T.ID_Trabajador FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado=T.ID_Empleado LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado WHERE T.ID_Trabajador=? AND E.Estado='Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'),?,?,?,?,?,?)`).bind(trabajadorId,user.id,proyectoId,ahora.fecha,inicio,entrega,descripcion));
+    statements.push(env.DB.prepare(`INSERT INTO Tareas (ID_Trabajador,ID_Administrador_Asignador,Nombre_Tarea,Fecha,Fecha_Inicio,Fecha_Entrega,Descripcion_Tarea)
+      VALUES ((SELECT T.ID_Trabajador FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado=T.ID_Empleado LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado WHERE T.ID_Trabajador=? AND E.Estado='Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'),?,?,?,?,?,?)`).bind(trabajadorId,user.id,nombre,ahora.fecha,inicio,entrega,descripcion));
     statements.push(env.DB.prepare('UPDATE Tareas_Detalle SET Prioridad=? WHERE ID_Tarea=last_insert_rowid()').bind(prioridad));
   }
   let results;try{results=await env.DB.batch(statements);}catch(err){if(String(err).includes('NOT NULL constraint failed: Tareas.ID_Trabajador'))throw new HttpError(409,'Un trabajador dejó de estar activo. Actualiza la selección.');throw err;}
@@ -161,14 +146,15 @@ export async function updateStatus({ request, env, user, params, tz }) {
 // Cambia campos de la tarea sin reasignar: el historial de chat y archivos sigue siendo privado.
 export async function edit({request,env,user,params}) {
  const id=intParam(params.id,{min:1}),b=await readJson(request),task=await loadTask(env.DB,id,user);
+ const name=text(b.nombre_tarea,{field:'El nombre de la tarea',max:120});
  const description=text(b.descripcion,{field:'La descripción',max:500});
  const deadline=normalizeDateTime(b.fecha_entrega);
  if(!deadline)throw new HttpError(400,'La fecha de entrega no es válida.');
  if(task.fecha_inicio && toMs(deadline)<toMs(task.fecha_inicio))throw new HttpError(400,'La entrega no puede ser anterior al inicio.');
  if(!['Alta','Media','Baja'].includes(b.prioridad))throw new HttpError(400,'Prioridad no válida.');
- if(!b.expected || b.expected.descripcion!==task.descripcion || b.expected.fecha_entrega!==task.fecha_entrega || b.expected.prioridad_manual!==(task.prioridad_manual??null)) throw new HttpError(409,'La tarea cambió. Vuelve a abrir el formulario.');
+ if(!b.expected || b.expected.nombre_tarea!==task.nombre_tarea || b.expected.descripcion!==task.descripcion || b.expected.fecha_entrega!==task.fecha_entrega || b.expected.prioridad_manual!==(task.prioridad_manual??null)) throw new HttpError(409,'La tarea cambió. Vuelve a abrir el formulario.');
  const result=await env.DB.batch([
-  env.DB.prepare(`UPDATE Tareas SET Descripcion_Tarea=?,Fecha_Entrega=? WHERE ID_Tarea=? AND Descripcion_Tarea=? AND Fecha_Entrega IS ? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea) AND (SELECT Prioridad FROM Tareas_Detalle WHERE ID_Tarea=Tareas.ID_Tarea) IS ?`).bind(description,deadline,id,task.descripcion,task.fecha_entrega,task.prioridad_manual??null),
+  env.DB.prepare(`UPDATE Tareas SET Nombre_Tarea=?,Descripcion_Tarea=?,Fecha_Entrega=? WHERE ID_Tarea=? AND Nombre_Tarea=? AND Descripcion_Tarea=? AND Fecha_Entrega IS ? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea) AND (SELECT Prioridad FROM Tareas_Detalle WHERE ID_Tarea=Tareas.ID_Tarea) IS ?`).bind(name,description,deadline,id,task.nombre_tarea,task.descripcion,task.fecha_entrega,task.prioridad_manual??null),
   env.DB.prepare('UPDATE Tareas_Detalle SET Prioridad=? WHERE ID_Tarea=? AND changes()=1').bind(b.prioridad,id),
  ]);
  if(!result[0].meta.changes)throw new HttpError(409,'La tarea cambió. Vuelve a abrir el formulario.');
@@ -203,11 +189,4 @@ export async function addComment({ request, env, user, params }) {
   const result=await env.DB.prepare('INSERT INTO Comentarios_Tarea (ID_Tarea, Autor, Rol, Mensaje) SELECT ID_Tarea,?,?,? FROM Tareas WHERE ID_Tarea=? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea)').bind(user.nombre,rol,mensaje,id).run();
   if(!result.meta.changes)throw new HttpError(404,'Tarea no encontrada.');
   return json({ message: 'Comentario añadido.' }, 201);
-}
-
-export async function projects({ env }) {
-  const { results } = await env.DB.prepare(
-    'SELECT ID_Proyecto AS id, Nombre_Proyecto AS nombre, Area_Departamento AS area FROM Proyectos ORDER BY Nombre_Proyecto',
-  ).all();
-  return json({ projects: results });
 }

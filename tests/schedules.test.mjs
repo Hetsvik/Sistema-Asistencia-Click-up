@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
 import {createTestDb} from './d1-shim.mjs';import {handleApi} from './legacy-test-adapter.mjs';import {validateSchedule} from '../src/lib/work-schedule.js';import {weeklyMinutes} from '../frontend/js/work-schedule.js';
 const split=[{dia:1,tramos:[{inicio:'08:30',fin:'13:00'},{inicio:'14:00',fin:'18:15'}]},{dia:5,tramos:[{inicio:'09:00',fin:'12:00'}]}];
-function setup(t){const db=createTestDb({seed:false});db.raw.exec(readFileSync(new URL('./fixtures/modules_data.sql',import.meta.url),'utf8'));t.after(()=>db.raw.close());
+function setup(t){const db=createTestDb({seed:false});db.raw.exec(readFileSync(new URL('./fixtures/modules_data_current.sql',import.meta.url),'utf8'));t.after(()=>db.raw.close());
 const call=async(method,path,body,cookie,extra={})=>{const r=await handleApi(new Request('http://localhost'+path,{method,headers:{...(body?{'Content-Type':'application/json'}:{}),...(cookie?{Cookie:cookie}:{}),...extra},body:body?JSON.stringify(body):undefined}),{DB:db,SESSION_SECRET:'secreto-ficticio-horarios-test',TIMEZONE:'Pacific/Auckland'});return {status:r.status,data:await r.json(),cookie:r.headers.get('Set-Cookie')?.split(';')[0]};};
 const login=async(worker=false)=>(await call('POST','/api/auth/login',{codigo:worker?'TEST001':'TESTADM',pin:worker?'1234':'admin1234',es_admin:!worker})).cookie;
 return {db,call,login};}

@@ -1,3 +1,5 @@
+> **Actualización:** Los ejemplos antiguos de paginación de proyectos quedaron retirados por la migración 0019.
+
 # Rendimiento y paginación del ERP
 
 Actualización incremental sobre la versión con seguridad/correo corporativo y corrección de fecha de asistencia de Perú. No sustituye el backend ni cambia de plataforma. No fue desplegada en la cuenta real.
@@ -5,14 +7,14 @@ Actualización incremental sobre la versión con seguridad/correo corporativo y 
 ## Cambios efectivos
 
 - Tareas: paginación SQL con total, tamaño y página; desaparece el límite silencioso de las primeras 200 tareas. Las páginas posteriores permiten consultar el resto.
-- Usuarios administrados, proyectos y anuncios: paginación existente ampliada con tamaño, salto a página y rutas enlazables.
+- Usuarios administrados, anuncios: paginación existente ampliada con tamaño, salto a página y rutas enlazables.
 - Asistencia diaria: consulta solamente los trabajadores de la página (20 por defecto; máximo 50). Obtiene únicamente la vigencia de horario aplicable hoy, no todas las versiones históricas por trabajador.
 - Historial: combina registros antiguos y tramos programados/marcados en SQL, cuenta y aplica LIMIT/OFFSET antes de devolver filas a JavaScript. No obtiene todo el historial para recortarlo en memoria.
 - Cálculo de tramos: mantiene horario por vigencia, plan congelado al marcar, descanso, dos tramos y tolerancia inclusiva de diez minutos. No mueve fechas ni actualiza asistencias anteriores.
 - Reportes: puntualidad agregada en D1; el resumen no devuelve detalles. Detalles solo al exportar, con los límites existentes de 10.000 tareas y 50.000 tramos. Se elimina una consulta de tareas duplicada. Los porcentajes/gráficos corresponden al conjunto filtrado, no a una página.
 - Calendario: conteos agrupados por día para las 42 celdas y agenda del día paginada. Ya no descarga todos los detalles del mes. Se conservan conteos y enlaces a las tareas; las miniaturas de títulos dentro de cada celda se sustituyen por el conteo para evitar otra descarga masiva.
 - Inicio: obtiene COUNT/SUM de pendientes; no descarga tareas para contarlas.
-- Formularios de tareas y selector de trabajador de reportes: búsqueda y navegación de catálogos en bloques de 20 opciones. No se recorren automáticamente todas las páginas del catálogo de proyectos.
+- Formularios de tareas y selector de trabajador de reportes: búsqueda y navegación de catálogos en bloques de 20 opciones. No se recorren automáticamente todas las páginas del catálogo de tareas.
 - Paginadores: Anterior/Siguiente, ir a página y 10/20/50/100 filas (asistencia diaria: 10/20/50). La API impone límites incluso si se omite la interfaz.
 - Historial de asistencia móvil: filas como tarjetas con todas las columnas visibles, sin tener que desplazar lateralmente para ver salida/estado.
 
@@ -29,7 +31,6 @@ Se reutilizan las interfaces existentes mediante query strings. Recargar y Atrá
 /usuarios/tareas?page=2&limit=20
 /admin/anuncios?page=2&sort=fecha&order=desc
 /usuarios/anuncios?page=2
-/admin/proyectos?page=2&order=desc
 /admin/calendario?mes=2026-10&dia=2026-10-27&page=2
 /usuarios/calendario?mes=2026-10&dia=2026-10-27&page=2
 /admin/reportes?periodo=mes&trabajador=1&prioridad=Alta&metrica=prioridad&grafico=dona
@@ -48,7 +49,6 @@ GET /api/tasks?calendar=2026-10&vista=resumen
 GET /api/tasks?dia=2026-10-27&page=2&limit=20
 GET /api/admin/users?page=2&limit=20
 GET /api/users?q=Ana&page=1&limit=20
-GET /api/projects?page=2&limit=20
 GET /api/announcements?page=2&limit=20
 GET /api/attendance/daily?page=2&limit=20
 GET /api/attendance?desde=2026-10-01&hasta=2026-10-31&page=2&limit=20
@@ -60,7 +60,7 @@ GET /api/attendance?desde=2026-10-01&hasta=2026-10-31&page=2&limit=20
 - La expansión prevista de horarios se limita a 200.000 tramos potenciales por consulta; si excede ese presupuesto se devuelve 413 y se solicita filtrar trabajador/periodo. No se muestra un porcentaje parcial.
 - Los listados se ordenan de forma determinista con identificadores como desempate. La paginación numérica usa OFFSET: no representa una fotografía inmutable mientras otros usuarios insertan/eliminan filas. Para historiales extremadamente profundos convendrá evaluar cursores y agregados persistentes.
 - `calendar=...` y el filtro antiguo `notifications=1` ya no son excepciones sin límite: devuelven páginas. La bandeja vigente de notificaciones usa su endpoint propio por cursor, conservado.
-- El catálogo de proyectos por cursor `before` se conserva; no mezclar `before` y `page`.
+- El catálogo de proyectos y sus rutas se retiraron en la migración 0019.
 - La API vuelve a comprobar sesión y permisos en cada petición. Un trabajador no accede a datos ajenos cambiando filtros, páginas o identificadores.
 
 ## Frecuencia y recursos

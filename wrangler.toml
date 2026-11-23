@@ -14,7 +14,7 @@ TIMEZONE = "America/Lima"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "bd-empresa2"
+database_name = "bd-erp"
 database_id = "93f76f14-8feb-4cd3-b820-175f6b9b5671"
 migrations_dir = "database/migrations"
 

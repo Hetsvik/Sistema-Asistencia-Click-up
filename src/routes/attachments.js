@@ -4,7 +4,7 @@ import {LIMITS,safeName,detectType,previewKind,disposition,limitedForm} from '..
 export const configured=env=>Boolean(env.ATTACHMENTS?.put&&env.ATTACHMENTS?.get&&env.ATTACHMENTS?.delete);
 const bucket=env=>{if(!configured(env))throw new HttpError(503,'R2 no está configurado. Revisa el binding ATTACHMENTS.');return env.ATTACHMENTS;};
 export async function authorizeTask(db,id,user){
- const task=await db.prepare(`SELECT T.ID_Trabajador trabajador_id,T.Descripcion_Tarea task_name
+ const task=await db.prepare(`SELECT T.ID_Trabajador trabajador_id,T.Nombre_Tarea task_name
   FROM Tareas T
   WHERE T.ID_Tarea=? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=T.ID_Tarea)`).bind(id).first();
  if(!task||(user.rol!=='admin'&&task.trabajador_id!==user.id))throw new HttpError(404,'Tarea no encontrada.');
@@ -19,7 +19,7 @@ const folderName=value=>{
  const cleaned=String(value??'').normalize('NFC').trim().replace(/[\\/\x00-\x1f\x7f]/g,'-').slice(0,160);
  return cleaned&&cleaned!=='.'&&cleaned!=='..'?cleaned:'Sin nombre';
 };
-const objectKey=(task,userName,name)=>`${folderName(task.task_name)}/${folderName(userName)}/${name}`;
+const objectKey=(task,userName,name)=>`tareas/${folderName(task.task_name)}/${folderName(userName)}/${name}`;
 export async function discard(env,row){
  // El estado impide que una recuperación simultánea publique estos objetos.
  const token=crypto.randomUUID(),now=new Date().toISOString(),cutoff=new Date(Date.now()-3600000).toISOString();

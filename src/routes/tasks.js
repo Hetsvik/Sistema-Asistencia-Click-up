@@ -11,7 +11,8 @@ const LATE_TAG = '[ENTREGADO FUERA DE PLAZO]';
 const SELECT = `
   SELECT t.ID_Tarea AS id, t.ID_Trabajador AS trabajador_id, e.Nombre_Completo AS trabajador,
          t.Nombre_Tarea AS nombre_tarea, t.Descripcion_Tarea AS descripcion, t.Fecha AS fecha, t.Fecha_Inicio AS fecha_inicio,
-         t.Fecha_Entrega AS fecha_entrega, t.Estado_Tarea AS estado, t.Observaciones AS observaciones, D.Prioridad AS prioridad_manual
+         t.Fecha_Entrega AS fecha_entrega, t.Fecha_Completada AS fecha_completada,
+         t.Estado_Tarea AS estado, t.Observaciones AS observaciones, D.Prioridad AS prioridad_manual
   FROM Tareas t
   LEFT JOIN Tareas_Detalle D ON D.ID_Tarea=t.ID_Tarea
   JOIN Trabajadores w ON w.ID_Trabajador = t.ID_Trabajador
@@ -29,9 +30,15 @@ async function loadTask(db, id, user) {
 
 export async function list({ env, user, url, tz }) {
   const p = url.searchParams;
+  const history = p.get('historial') === '1';
+  const activeOnly = p.get('activas') === '1';
+  if (history && activeOnly) throw new HttpError(400, 'Usa historial o activas, no ambos.');
   const where = [activeTask];
   const binds = [];
   const add = (sql, ...values) => { where.push(sql); binds.push(...values); };
+
+  if (history) add("t.Estado_Tarea = 'Completada'");
+  else if (activeOnly) add("t.Estado_Tarea <> 'Completada'");
 
   if (user.rol === 'trabajador') {
     add('t.ID_Trabajador = ?', user.id);
@@ -42,6 +49,7 @@ export async function list({ env, user, url, tz }) {
   const estado = p.get('estado');
   if (estado) {
     if (!ESTADOS.includes(estado)) throw new HttpError(400, 'Estado no válido.');
+    if (history && estado !== 'Completada' || activeOnly && estado === 'Completada') throw new HttpError(400, 'El estado no corresponde a esta vista.');
     add('t.Estado_Tarea = ?', estado);
   }
   const q = (p.get('q') ?? '').trim().slice(0, 60);
@@ -62,6 +70,14 @@ export async function list({ env, user, url, tz }) {
     add("t.Estado_Tarea <> 'Completada' AND t.Fecha_Entrega <= ?", cutoff);
   }
   const day=p.get('dia');if(day){if(!isDate(day))throw new HttpError(400,'Día no válido.');add('t.Fecha_Entrega>=? AND t.Fecha_Entrega<?',day+' 00:00:00',day+' 24:00:00');}
+  const fromDate=p.get('desde'),toDate=p.get('hasta');
+  if(history){
+    if(fromDate&&!isDate(fromDate)||toDate&&!isDate(toDate))throw new HttpError(400,'El intervalo de fechas no es válido.');
+    if(fromDate&&toDate&&fromDate>toDate)throw new HttpError(400,'La fecha inicial no puede ser posterior a la fecha final.');
+    const historyDate="substr(COALESCE(t.Fecha_Completada,t.Fecha_Entrega,t.Fecha),1,10)";
+    if(fromDate)add(`${historyDate} >= ?`,fromDate);
+    if(toDate)add(`${historyDate} <= ?`,toDate);
+  }else if(fromDate!==null||toDate!==null)throw new HttpError(400,'El intervalo de fechas solo se usa en el historial.');
   const from=SELECT.slice(SELECT.indexOf('  FROM Tareas'));
   const condition=where.length?'WHERE '+where.join(' AND '):'';
   if(p.get('resumen')==='1'){
@@ -70,13 +86,13 @@ export async function list({ env, user, url, tz }) {
   if(calendar!==null&&p.get('vista')==='resumen'){
    const {results:days}=await env.DB.prepare(`SELECT substr(t.Fecha_Entrega,1,10) fecha,COUNT(*) total ${from} ${condition} GROUP BY substr(t.Fecha_Entrega,1,10)`).bind(...binds).all();return json({days});
   }
-  const pg=pagination(p),count=await env.DB.prepare(`SELECT COUNT(*) n ${from} ${condition}`).bind(...binds).first(),meta=pageInfo(count.n,pg);
+  const pg=pagination(p,history?{size:10,max:10}:{}),count=await env.DB.prepare(`SELECT COUNT(*) n ${from} ${condition}`).bind(...binds).first(),meta=pageInfo(count.n,pg);
   const limit=pg.limit;
   const sql = `${SELECT} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-               ORDER BY (t.Estado_Tarea = 'Completada'), t.Fecha_Entrega ASC, t.ID_Tarea ASC LIMIT ? OFFSET ?`;
+               ORDER BY ${history?'COALESCE(t.Fecha_Completada,t.Fecha_Entrega,t.Fecha) DESC, t.ID_Tarea DESC':"(t.Estado_Tarea = 'Completada'), t.Fecha_Entrega ASC, t.ID_Tarea ASC"} LIMIT ? OFFSET ?`;
   const { results } = await env.DB.prepare(sql).bind(...binds, limit,meta.offset).all();
   const ahora = nowLocal(tz).fechaHora;
-  return json({ tasks: results.map((t) => withPriority(t, ahora)),...meta });
+  return json({ tasks: results.map((t) => ({...withPriority(t, ahora),fecha_historial:t.fecha_completada||t.fecha_entrega||t.fecha})),...meta });
 }
 
 export async function detail({ env, user, params, tz }) {
@@ -138,7 +154,7 @@ export async function updateStatus({ request, env, user, params, tz }) {
   if (b.estado === 'En revisión' && task.fecha_entrega && toMs(ahora) > toMs(task.fecha_entrega) && !obs.includes(LATE_TAG)) {
     obs = `${LATE_TAG} ${obs}`.trim();
   }
-  const changed = await env.DB.prepare('UPDATE Tareas SET Estado_Tarea = ?, Observaciones = ? WHERE ID_Tarea = ? AND Estado_Tarea = ? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea)').bind(b.estado, obs, id, task.estado).run();
+  const changed = await env.DB.prepare('UPDATE Tareas SET Estado_Tarea = ?, Observaciones = ?, Fecha_Completada = CASE WHEN ? = \'Completada\' THEN COALESCE(Fecha_Completada, ?) ELSE NULL END WHERE ID_Tarea = ? AND Estado_Tarea = ? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=Tareas.ID_Tarea)').bind(b.estado, obs, b.estado, b.estado === 'Completada' ? ahora.fechaHora : null, id, task.estado).run();
   if (!changed.meta.changes) throw new HttpError(409,'La tarea cambió. Vuelve a abrirla e inténtalo de nuevo.');
   return json({ message: 'Estado actualizado.', task: withPriority(await loadTask(env.DB, id, user), ahora) });
 }

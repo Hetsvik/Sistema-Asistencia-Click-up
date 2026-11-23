@@ -31,7 +31,7 @@
         <label for="menu-check" class="icon-btn menu-toggle" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
       </div>
     </header>
-    <nav class="task-tabs" aria-label="Tipos de tareas"><a id="tab-assigned">Tareas asignadas</a><a id="tab-express">Tareas express</a></nav>
+    <nav class="task-tabs" aria-label="Tipos de tareas"><a id="tab-assigned">Tareas asignadas</a><a id="tab-express">Tareas express</a><a id="tab-history">Historial de tareas</a></nav>
     <section id="assigned-panel">
     <div class="toolbar">
       <span></span>
@@ -43,6 +43,11 @@
     <section id="task-list" aria-live="polite"><div class="empty-state"><strong>Cargando…</strong></div></section>
     </section>
     <section id="express-panel" hidden><div class="toolbar"><button class="btn" id="express-add" type="button" hidden>+ Añadir tarea express</button><div class="search grow"><input id="express-search" class="input" type="search" placeholder="Buscar tarea express"></div></div><div id="express-list" aria-live="polite"></div><nav id="express-pagination"></nav></section>
+    <section id="history-panel" hidden>
+      <form class="task-history-filters" id="history-filters"><label>Desde<input class="input" type="date" id="history-from"></label><label>Hasta<input class="input" type="date" id="history-to"></label><button class="btn" type="submit">Buscar</button><button class="btn outline" id="history-clear" type="button">Limpiar</button></form><p class="task-history-note">Las tareas completadas antes de guardar su fecha de cierre se filtran por fecha de entrega o, si no existe, por fecha de creación.</p>
+      <div class="task-head"><span>Nombre</span><span>Descripción</span><span>Fecha de cierre o entrega</span><span>Prioridad</span><span>Estado</span><span>Acción</span></div>
+      <section id="history-list" aria-live="polite"><div class="empty-state"><strong>Cargando historial…</strong></div></section><nav id="history-pagination"></nav>
+    </section>
   </main>
 </div>
 <script type="module" src="/js/pages/tareas.js"></script>

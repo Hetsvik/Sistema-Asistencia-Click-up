@@ -364,6 +364,9 @@ dialog.modal.task-create-wide{width:min(96vw,900px)}
 .chosen-worker button{border:0;background:transparent;color:inherit;font-size:1.1rem;cursor:pointer}
 #area-create:not([hidden]){display:grid;gap:.5rem;margin-top:.5rem}
 .task-tabs{display:flex;gap:1.4rem;border-bottom:1px solid var(--line);margin:0 0 1.4rem}.task-tabs a{padding:.8rem .1rem;color:var(--text-dim);text-decoration:none}.task-tabs a[aria-current=page]{color:var(--gold-light);border-bottom:2px solid var(--gold)}
+.task-history-filters{display:flex;align-items:end;flex-wrap:wrap;gap:.75rem;margin:0 0 1.2rem}.task-history-filters label{display:grid;gap:.35rem;color:var(--text-dim);font-size:.86rem}.task-history-filters input{min-width:170px}
+.task-history-note{margin:-.65rem 0 1.2rem;color:var(--text-dim);font-size:.82rem}
+@media(max-width:600px){.task-tabs{gap:.9rem;overflow-x:auto;white-space:nowrap}.task-history-filters label{flex:1 1 40%}.task-history-filters input{min-width:0;width:100%}.task-history-filters button{flex:1 1 40%}}
 .express-card{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1rem 0;padding:1rem 1.25rem}.express-card p{margin:.4rem 0}.express-card small{color:var(--text-dim)}.express-area{display:inline-flex!important;align-items:center;gap:.4rem;margin:.5rem 1rem .5rem 0}
 #user-photo-preview,#own-photo-preview{object-fit:cover;border-radius:50%;border:1px solid var(--line-strong)}
 #profile-photo-controls{padding:1.25rem 0;display:grid;gap:.7rem}

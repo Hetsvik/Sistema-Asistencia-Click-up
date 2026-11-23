@@ -14,17 +14,17 @@ const role = document.body.dataset.role;
 const isAdmin = role === 'admin';
 const user = await initPage({ role, page: 'inicio' });
 
-const isExpress=new URLSearchParams(location.search).get('tab')==='express';
+const selectedTab=new URLSearchParams(location.search).get('tab');
+const isExpress=selectedTab==='express',isHistory=selectedTab==='historial';
 const base=role==='admin'?'/admin/tareas':'/usuarios/tareas';
-$('#tab-assigned').href=base;$('#tab-express').href=base+'?tab=express';
-$(isExpress?'#tab-express':'#tab-assigned').setAttribute('aria-current','page');
-$('#assigned-panel').hidden=isExpress;$('#express-panel').hidden=!isExpress;
+$('#tab-assigned').href=base;$('#tab-express').href=base+'?tab=express';$('#tab-history').href=base+'?tab=historial';
+$(isHistory?'#tab-history':isExpress?'#tab-express':'#tab-assigned').setAttribute('aria-current','page');
+$('#assigned-panel').hidden=isExpress||isHistory;$('#express-panel').hidden=!isExpress;$('#history-panel').hidden=!isHistory;
 const list = $('#task-list');
-const route=routeState({page:1,limit:10,estado:'',q:''});
-let page=1,sequence=0;const filters={estado:'',q:''};
-const restore=()=>{const v=route.read();page=v.page;filters.estado=v.estado;filters.q=v.q;$('#task-search').value=v.q;$$('[data-estado]').forEach(b=>b.classList.toggle('is-active',b.dataset.estado===v.estado));};
+const route=routeState({page:1,limit:10,estado:'',q:'',desde:'',hasta:''});
+let page=1,sequence=0,historyPage=1,historySequence=0;const filters={estado:'',q:''};let tasks=[],historyTasks=[];
+const restore=()=>{const v=route.read();page=v.page;historyPage=v.page;filters.estado=v.estado;filters.q=v.q;$('#task-search').value=v.q;$('#history-from').value=v.desde;$('#history-to').value=v.hasta;$$('[data-estado]').forEach(b=>b.classList.toggle('is-active',b.dataset.estado===v.estado));};
 const nav=document.createElement('nav');list.after(nav);
-let tasks = [];
 
 // ---------- Listado ----------
 const actionFor = (t) => {
@@ -34,7 +34,7 @@ const actionFor = (t) => {
 
 function render() {
   if (!tasks.length) {
-    list.innerHTML = `<div class="empty-state"><strong>No hay tareas</strong><p>${filters.estado || filters.q ? 'Prueba con otros filtros.' : isAdmin ? 'Crea la primera con “Añadir Tarea”.' : 'Cuando te asignen una, aparecerá aquí.'}</p></div>`;
+    list.innerHTML = `<div class="empty-state"><strong>No hay tareas activas</strong><p>${filters.estado || filters.q ? 'Prueba con otros filtros.' : isAdmin ? 'Crea la primera con “Añadir Tarea”.' : 'Cuando te asignen una, aparecerá aquí.'}</p></div>`;
     return;
   }
   list.innerHTML = tasks.map((t) => {
@@ -52,10 +52,31 @@ function render() {
 
 async function load(next=page){
  const seq=++sequence;list.setAttribute('aria-busy','true');
- try{const data=await Tasks.list({estado:filters.estado,q:filters.q,page:next,limit:10});if(seq!==sequence)return;tasks=data.tasks;page=data.page;render();route.write({page,limit:null,...filters});pager(data,load,{element:nav,simple:true});}
+ try{const data=await Tasks.list({activas:1,estado:filters.estado,q:filters.q,page:next,limit:10});if(seq!==sequence)return;tasks=data.tasks;page=data.page;render();route.write({page,limit:null,...filters});pager(data,load,{element:nav,simple:true});}
  catch(err){if(seq===sequence)toast(err.message,'error');}
  finally{if(seq===sequence)list.setAttribute('aria-busy','false');}
 }
+
+const historyList=$('#history-list'),historyNav=$('#history-pagination');
+function renderHistory(){
+ if(!historyTasks.length){historyList.innerHTML='<div class="empty-state"><strong>No hay tareas completadas</strong><p>Prueba otro intervalo de fechas.</p></div>';return;}
+ historyList.innerHTML=historyTasks.map(t=>`<article class="task history-task" data-id="${t.id}" tabindex="0">
+   <span class="name">${esc(t.nombre_tarea)}${isAdmin?`<small>${esc(t.trabajador)}</small>`:''}</span>
+   <span class="desc" title="${esc(t.descripcion)}">${esc(truncate(t.descripcion,50))}</span>
+   <span class="date">${fmtDate(t.fecha_historial)}</span><span class="prio">${badgePrioridad(t.prioridad)}</span>
+   <span class="estado">${badgeEstado(t.estado)}</span><span class="act"><button class="btn sm outline" type="button">Ver</button></span>
+ </article>`).join('');
+}
+async function loadHistory(next=historyPage){
+ const seq=++historySequence;historyList.setAttribute('aria-busy','true');
+ try{const desde=$('#history-from').value,hasta=$('#history-to').value;const data=await Tasks.list({historial:1,desde,hasta,page:next,limit:10});if(seq!==historySequence)return;historyTasks=data.tasks;historyPage=data.page;renderHistory();route.write({page:historyPage,limit:null,desde,hasta});pager(data,loadHistory,{element:historyNav,simple:true});}
+ catch(err){if(seq===historySequence)toast(err.message,'error');}
+ finally{if(seq===historySequence)historyList.setAttribute('aria-busy','false');}
+}
+historyList.addEventListener('click',e=>{const row=e.target.closest('.history-task');if(row)openDetail(Number(row.dataset.id));});
+historyList.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('history-task'))openDetail(Number(e.target.dataset.id));});
+$('#history-filters').addEventListener('submit',e=>{e.preventDefault();const desde=$('#history-from').value,hasta=$('#history-to').value;if(desde&&hasta&&desde>hasta)return toast('La fecha inicial no puede ser posterior a la fecha final.','error');loadHistory(1);});
+$('#history-clear').addEventListener('click',()=>{$('#history-from').value='';$('#history-to').value='';loadHistory(1);});
 
 list.addEventListener('click', async (e) => {
   const row = e.target.closest('.task');
@@ -97,7 +118,7 @@ async function openEdit(id){
  const form=$('#edit-task',modal.el),picker=initDateTimePicker($('#edit-task-datetime',form),{initialDate:parts[1],hour:hour%12||12,minute:Number(parts[3]),period:hour>=12?'PM':'AM',label:'Fecha y hora de entrega'});
  form.addEventListener('submit',e=>{e.preventDefault();withBusy($('[type=submit]',form),async()=>{try{
   await Tasks.edit(id,{nombre_tarea:form.elements.nombre_tarea.value,descripcion:form.elements.descripcion.value,prioridad:form.elements.prioridad.value,fecha_entrega:picker.getValue(),expected:{nombre_tarea:task.nombre_tarea,descripcion:task.descripcion,fecha_entrega:task.fecha_entrega,prioridad_manual:task.prioridad_manual??null}});
-  modal.close();toast('Tarea actualizada.','success');await load();
+  modal.close();toast('Tarea actualizada.','success');if(isHistory)await loadHistory(historyPage);else await load();
  }catch(err){const box=$('#edit-task-error',form);box.textContent=err.message;box.hidden=false;}});});
 }
 function confirmRemove(task){const modal=openModal({title:'Eliminar tarea',html:`<p>¿Eliminar la tarea <strong>${esc(task.nombre_tarea)}</strong> de <strong>${esc(task.trabajador)}</strong>?</p><p>Dejará de aparecer en tareas, reportes y alarmas. El historial y los adjuntos se conservarán de forma privada; no se borrarán definitivamente.</p><p class="form-message is-error" id="delete-task-error" hidden role="alert"></p><div class="modal-actions"><button type="button" class="btn outline" data-close>Cancelar</button><button type="button" class="btn" id="delete-task-confirm">Eliminar tarea</button></div>`});
@@ -106,7 +127,7 @@ function confirmRemove(task){const modal=openModal({title:'Eliminar tarea',html:
 
 // ---------- Filtros ----------
 const menu = $('#filter-menu');
-menu.innerHTML = ['', ...ESTADOS].map((s) => `<button type="button" data-estado="${esc(s)}" class="${s === '' ? 'is-active' : ''}">${s || 'Todas'}</button>`).join('');
+menu.innerHTML = ['', ...ESTADOS.filter(s=>s!=='Completada')].map((s) => `<button type="button" data-estado="${esc(s)}" class="${s === '' ? 'is-active' : ''}">${s || 'Todas las activas'}</button>`).join('');
 $('#btn-filter').addEventListener('click', (e) => { e.stopPropagation(); menu.toggleAttribute('hidden'); });
 document.addEventListener('click', () => menu.setAttribute('hidden', ''));
 menu.addEventListener('click', (e) => {
@@ -118,7 +139,7 @@ menu.addEventListener('click', (e) => {
 });
 $('#task-search').addEventListener('input', debounce((e) => { filters.q = e.target.value.trim(); load(1); }, 350));
 
-document.addEventListener('erp:task-events',()=>load());
+document.addEventListener('erp:task-events',()=>{load();if(isHistory)loadHistory();});
 
 // ---------- Detalle + chat ----------
 async function openDetail(id) {
@@ -211,7 +232,7 @@ async function openDetail(id) {
       $('#d-estado', modal.el).innerHTML = `${badgeEstado(res.task.estado)} ${badgePrioridad(res.task.prioridad)}`;
       toast('Estado actualizado.', 'success');
       modal.close();
-      await load();
+      if(isHistory)await loadHistory(historyPage);else await load();
     } catch (err) { toast(err.message, 'error'); }
   }));
 }
@@ -258,7 +279,7 @@ async function openCreate() {
 }
 $('#btn-add')?.addEventListener('click', openCreate);
 
-if(isExpress){await initExpress({role});}else{route.onChange(()=>{restore();load(page);});restore();await load(page);}
+if(isExpress){await initExpress({role});}else{route.onChange(()=>{restore();if(isHistory)loadHistory(historyPage);else load(page);});restore();if(isHistory)await loadHistory(historyPage);else await load(page);}
 // El identificador se conserva internamente para abrir una tarea desde calendario/notificaciones.
 const linkedTask = new URLSearchParams(location.search).get('tarea');
 if (!isExpress && linkedTask && /^[1-9]\d*$/.test(linkedTask)) await openDetail(Number(linkedTask));

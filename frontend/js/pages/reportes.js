@@ -1,5 +1,5 @@
 import {routeState} from '../list-state.js';
-import {Reports} from '../api.js';import {openWorkerPicker} from '../worker-picker.js';import {initPage} from '../layout.js';import {enableMenuKeyboard} from '../page-tools.js';import {drawMetricChart,metricColor} from '../chart.js';import {download,reportSheets,toCSV,toXLSX} from '../report-export.js';import {$,debounce,esc,toast,withBusy} from '../ui.js';
+import {Catalog,Reports} from '../api.js';import {initPage} from '../layout.js';import {enableMenuKeyboard} from '../page-tools.js';import {drawMetricChart,metricColor} from '../chart.js';import {download,reportSheets,toCSV,toXLSX} from '../report-export.js';import {$,debounce,esc,toast,withBusy,openModal} from '../ui.js';
 const admin=document.body.dataset.role==='admin';await initPage({role:admin?'admin':'trabajador',page:'inicio'});enableMenuKeyboard();let data=null,generation=0;
 const route=routeState({periodo:'mes',trabajador:'',prioridad:'',metrica:'prioridad',grafico:'barras'});
 const restore=()=>{const v=route.read();for(const [id,key] of [['periodo','periodo'],['report-priority','prioridad'],['report-metric','metrica'],['report-chart','grafico']]){const el=$('#'+id);if([...el.options].some(o=>o.value===v[key]))el.value=v[key];}const w=$('#report-worker');if(w)w.value=v.trabajador||'';if(admin&&v.trabajador)$('#user-search').value='';};restore();
@@ -9,7 +9,24 @@ function paint(){if(!data)return;const p=data.puntualidad;$('#metric-punctual').
 async function load(){const seq=++generation;for(const id of ['download-xlsx','download-png','download-csv'])$('#'+id).disabled=true;if(admin&&!$('#report-worker').value){data=null;$('#report-status').textContent='Selecciona un trabajador para consultar sus reportes.';$('#report-scope').textContent='';return;}$('#report-status').textContent='Cargando…';try{const next=await Reports.summary(params());if(seq!==generation)return;data=next;route.write({...params(),metrica:$('#report-metric').value,grafico:$('#report-chart').value});if(admin&&data.trabajador)$('#user-search').value=data.trabajador.nombre;paint();$('#report-status').textContent='Datos actualizados';for(const id of ['download-xlsx','download-png','download-csv'])$('#'+id).disabled=false;}catch(e){if(seq===generation){data=null;$('#report-status').textContent='No se pudieron cargar los datos: '+e.message;}}}
 for(const id of ['periodo','report-priority','report-worker'])$('#'+id)?.addEventListener('change',load);for(const id of ['report-metric','report-chart'])$('#'+id).onchange=()=>{route.write({metrica:$('#report-metric').value,grafico:$('#report-chart').value});paint();};window.addEventListener('resize',debounce(paint,150));document.addEventListener('erp:appearance',()=>requestAnimationFrame(paint));
 if(admin){
- $('#choose-worker').onclick=()=>openWorkerPicker({query:$('#user-search').value,onSelect:worker=>{$('#report-worker').value=worker.id;$('#user-search').value=worker.nombre;load();}});
+ let picker=null,workerPage=1,workerPages=1,workerSearch='',workerGeneration=0;
+ const initials=name=>name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toLocaleUpperCase('es');
+ async function showWorkers(page=1){
+  if(!picker)return;const seq=++workerGeneration;workerPage=page;const root=$('#worker-cards');root.setAttribute('aria-busy','true');root.innerHTML='<p class="empty">Cargando trabajadores…</p>';
+  try{const d=await Catalog.users({q:workerSearch,rol:'trabajador',page,limit:10});if(!picker||seq!==workerGeneration)return;workerPage=d.page;workerPages=d.pages;
+   root.innerHTML=d.users.map(u=>`<button type="button" class="worker-card" data-id="${u.id}" data-name="${esc(u.nombre)}"><span class="worker-avatar">${u.tiene_foto?`<img class="worker-photo" src="/api/user-photo/${u.empleado_id}" alt="Foto de ${esc(u.nombre)}" loading="lazy">`:''}<span class="worker-initials" ${u.tiene_foto?'hidden':''}>${esc(initials(u.nombre))}</span></span><strong>${esc(u.nombre)}</strong><span>${esc(u.cargo||'Cargo no asignado')}</span><small>${esc(u.area||'Área no asignada')}</small></button>`).join('')||'<p class="empty">No se encontraron trabajadores.</p>';
+   $('#worker-results').textContent=`Página ${workerPage} de ${workerPages} · ${d.total} trabajadores`;
+   $('#worker-prev').disabled=workerPage<=1;$('#worker-next').disabled=workerPage>=workerPages;$('#worker-pagination').hidden=workerPages<=1;
+  }catch(e){if(picker&&seq===workerGeneration)root.innerHTML=`<p class="empty">${esc(e.message)}</p>`;}finally{if(picker&&seq===workerGeneration)root.setAttribute('aria-busy','false');}
+ }
+ $('#choose-worker').onclick=()=>{
+  picker=openModal({title:'Seleccionar trabajador',wide:true,html:'<label class="worker-modal-search">Buscar por nombre o código<input class="input plain" id="worker-modal-search" type="search" autocomplete="off"></label><p id="worker-results" class="muted" role="status"></p><div id="worker-cards" class="worker-card-grid" aria-live="polite"></div><nav id="worker-pagination" class="worker-card-pagination" aria-label="Páginas de trabajadores" hidden><button id="worker-prev" class="btn outline" type="button">Anterior</button><button id="worker-next" class="btn outline" type="button">Siguiente</button></nav>',onClose:()=>{workerGeneration++;picker=null;}});
+  picker.el.classList.add('worker-directory');const search=$('#worker-modal-search');search.value=$('#user-search').value;workerSearch=search.value.trim();
+  search.addEventListener('input',debounce(()=>{workerSearch=search.value.trim();showWorkers(1);},250));
+  $('#worker-prev').onclick=()=>showWorkers(workerPage-1);$('#worker-next').onclick=()=>showWorkers(workerPage+1);
+  $('#worker-cards').addEventListener('error',e=>{if(!e.target.matches('.worker-photo'))return;e.target.hidden=true;e.target.nextElementSibling.hidden=false;},true);
+  $('#worker-cards').addEventListener('click',e=>{const card=e.target.closest('[data-id]');if(!card)return;$('#report-worker').value=card.dataset.id;$('#user-search').value=card.dataset.name;picker.close();load();});showWorkers();
+ };
 }
 route.onChange(()=>{restore();load();});
 $('#download-png').onclick=()=>$('#chart').toBlob(blob=>{if(blob)download(blob,'reporte-grafico.png');},'image/png');

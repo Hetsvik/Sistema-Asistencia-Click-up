@@ -247,7 +247,7 @@ async function openCreate() {
     <label class="full">Área de trabajo<select class="input plain" id="pick-area"><option value="">Selecciona un área…</option></select></label>
     <label>Buscar trabajador<input type="search" class="input plain" id="pick-worker" placeholder="Nombre o código" disabled></label>
     <label>Trabajador<select class="input plain" id="task-worker" disabled><option value="">Selecciona un área primero…</option></select></label>
-    <div class="full"><button type="button" class="btn outline sm" id="add-worker" disabled>+ Añadir trabajador</button><p class="muted" id="worker-hint" role="status">Selecciona un área para ver sus trabajadores.</p><div id="chosen-workers" class="chosen-workers"></div></div>
+    <div class="full"><button type="button" class="btn outline sm" id="choose-worker-directory">Seleccionar trabajador</button><button type="button" class="btn outline sm" id="add-worker" disabled>+ Añadir trabajador</button><p class="muted" id="worker-hint" role="status">Busca trabajadores por área o selecciónalos desde la ventana.</p><div id="chosen-workers" class="chosen-workers"></div></div>
     <label class="full">Nombre de la tarea<input class="input plain" name="nombre_tarea" maxlength="120" required></label>
     <label class="full">Descripción<textarea class="input plain" name="descripcion" rows="3" maxlength="500" required></textarea></label>
     <label class="full">Prioridad<select class="input plain" name="prioridad" required><option>Alta</option><option selected>Media</option><option>Baja</option></select></label>
@@ -259,7 +259,9 @@ async function openCreate() {
   const area=$('#pick-area',form),worker=$('#task-worker',form),workerSearch=$('#pick-worker',form),add=$('#add-worker',form),hint=$('#worker-hint',form),error=$('#f-error',form);
   const showError=e=>{error.textContent=e.message||e;error.hidden=false;};
   const renderChosen=()=>{const box=$('#chosen-workers',form);box.innerHTML=[...chosen.values()].map(w=>`<span class="chosen-worker">${esc(w.nombre)} · ${esc(w.area)} <button type="button" data-remove-worker="${w.id}" aria-label="Quitar ${esc(w.nombre)}">×</button></span>`).join('');};
+  const addChosenWorker=w=>{const id=Number(w.id);if(chosen.has(id))return showError('Ese trabajador ya fue añadido.');if(chosen.size>=50)return showError('Puedes asignar hasta 50 trabajadores por vez.');error.hidden=true;chosen.set(id,{...w,id,area:w.area||'Área no asignada'});renderChosen();hint.textContent=`${w.nombre} añadido a la selección.`;};
   $('#chosen-workers',form).addEventListener('click',e=>{const b=e.target.closest('[data-remove-worker]');if(b){chosen.delete(Number(b.dataset.removeWorker));renderChosen();}});
+  $('#choose-worker-directory',form).onclick=()=>openWorkerPicker({onSelect:addChosenWorker});
   async function loadWorkers(){
    const seq=++workerSerial;workers.clear();worker.disabled=true;add.disabled=true;worker.replaceChildren(new Option('Selecciona un trabajador…',''));
    if(!area.value){workerSearch.disabled=true;hint.textContent='Selecciona un área para ver sus trabajadores.';return;}
@@ -270,7 +272,7 @@ async function openCreate() {
    }catch(e){if(!closed&&seq===workerSerial){hint.textContent='No se pudieron cargar los trabajadores.';showError(e);}}
   }
   area.onchange=()=>{workerSearch.value='';loadWorkers();};workerSearch.addEventListener('input',debounce(loadWorkers,300));worker.onchange=()=>{add.disabled=!worker.value;};
-  add.onclick=()=>{const w=workers.get(Number(worker.value));if(!w)return;if(chosen.has(w.id))return showError('Ese trabajador ya fue añadido.');if(chosen.size>=50)return showError('Puedes asignar hasta 50 trabajadores por vez.');error.hidden=true;chosen.set(w.id,{...w,area:area.selectedOptions[0].textContent});renderChosen();area.value='';workerSearch.value='';loadWorkers();area.focus();};
+  add.onclick=()=>{const w=workers.get(Number(worker.value));if(!w)return;addChosenWorker({...w,area:area.selectedOptions[0].textContent});area.value='';workerSearch.value='';loadWorkers();area.focus();};
   try{const d=await WorkAreas.list();if(closed)return;for(const a of d.areas)area.add(new Option(a.nombre,String(a.id)));area.add(new Option('Sin área asignada (usuarios anteriores)','sin-area'));if(d.has_more)showError('Hay demasiadas áreas para mostrarlas. Contacta al soporte.');}catch(e){showError(e);}
   form.addEventListener('submit',async e=>{
     e.preventDefault();error.hidden=true;if(!chosen.size)return showError('Añade al menos un trabajador.');

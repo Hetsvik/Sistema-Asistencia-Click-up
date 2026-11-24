@@ -261,7 +261,16 @@ async function openCreate() {
   const renderChosen=()=>{const box=$('#chosen-workers',form);box.innerHTML=[...chosen.values()].map(w=>`<span class="chosen-worker">${esc(w.nombre)} · ${esc(w.area)} <button type="button" data-remove-worker="${w.id}" aria-label="Quitar ${esc(w.nombre)}">×</button></span>`).join('');};
   const addChosenWorker=w=>{const id=Number(w.id);if(chosen.has(id))return showError('Ese trabajador ya fue añadido.');if(chosen.size>=50)return showError('Puedes asignar hasta 50 trabajadores por vez.');error.hidden=true;chosen.set(id,{...w,id,area:w.area||'Área no asignada'});renderChosen();hint.textContent=`${w.nombre} añadido a la selección.`;};
   $('#chosen-workers',form).addEventListener('click',e=>{const b=e.target.closest('[data-remove-worker]');if(b){chosen.delete(Number(b.dataset.removeWorker));renderChosen();}});
-  $('#choose-worker-directory',form).onclick=()=>openWorkerPicker({onSelect:addChosenWorker});
+  $('#choose-worker-directory',form).onclick=()=>openWorkerPicker({
+   multiple:true,
+   selected:[...chosen.values()],
+   onApply:selectedWorkers=>{
+    chosen.clear();
+    for(const worker of selectedWorkers)chosen.set(Number(worker.id),{...worker,id:Number(worker.id),area:worker.area||'Área no asignada'});
+    error.hidden=true;renderChosen();
+    hint.textContent=`${chosen.size} trabajador${chosen.size===1?'':'es'} seleccionado${chosen.size===1?'':'s'}.`;
+   },
+  });
   async function loadWorkers(){
    const seq=++workerSerial;workers.clear();worker.disabled=true;add.disabled=true;worker.replaceChildren(new Option('Selecciona un trabajador…',''));
    if(!area.value){workerSearch.disabled=true;hint.textContent='Selecciona un área para ver sus trabajadores.';return;}

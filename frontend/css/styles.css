@@ -388,3 +388,6 @@ dialog.modal.worker-directory{width:min(96vw,1120px);max-height:90vh}.worker-dir
 
 /* Asistencia administrativa: mostrar únicamente Anterior y Siguiente. */
 #daily-panel .metrics-pagination #daily-page{display:none!important}
+
+/* Selección persistente del directorio al asignar tareas a varios trabajadores. */
+.worker-picker-actions{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:0 0 .8rem}.worker-card[aria-pressed="true"]{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--surface-2));box-shadow:inset 0 0 0 1px var(--gold)}

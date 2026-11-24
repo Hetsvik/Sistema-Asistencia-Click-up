@@ -10,7 +10,7 @@ const LATE_TAG = '[ENTREGADO FUERA DE PLAZO]';
 
 const SELECT = `
   SELECT t.ID_Tarea AS id, t.ID_Trabajador AS trabajador_id, e.Nombre_Completo AS trabajador,
-         t.Nombre_Tarea AS nombre,
+         t.Nombre_Tarea AS nombre_tarea,
          t.Descripcion_Tarea AS descripcion, t.Fecha AS fecha, t.Fecha_Inicio AS fecha_inicio,
          t.Fecha_Entrega AS fecha_entrega, t.Estado_Tarea AS estado, t.Observaciones AS observaciones, D.Prioridad AS prioridad_manual
   FROM Tareas t
@@ -100,7 +100,10 @@ export async function create({ request, env, user, tz }) {
    if(!worker)throw new HttpError(400,'Un trabajador no existe o está inactivo.');
   }
 
-  const nombre = text(b.nombre, { field: 'El nombre de la tarea', max: 120 });
+  // El formulario de tareas usa nombre_tarea, igual que las respuestas de
+  // este módulo y el endpoint de tareas express. Se conserva nombre como
+  // alternativa para no romper clientes previos de la API.
+  const nombre = text(b.nombre_tarea ?? b.nombre, { field: 'El nombre de la tarea', max: 120 });
   const descripcion = text(b.descripcion, { field: 'La descripción', max: 500 });
   const entrega = normalizeDateTime(b.fecha_entrega);
   if (!entrega) throw new HttpError(400, 'La fecha de entrega no es válida.');

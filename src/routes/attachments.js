@@ -7,7 +7,7 @@ export async function authorizeTask(db,id,user){
  const task=await db.prepare(`SELECT T.ID_Trabajador trabajador_id,T.Nombre_Tarea task_name
   FROM Tareas T
   WHERE T.ID_Tarea=? AND NOT EXISTS(SELECT 1 FROM Tareas_Control C WHERE C.ID_Tarea=T.ID_Tarea)`).bind(id).first();
- if(!task||(user.rol!=='admin'&&task.trabajador_id!==user.id))throw new HttpError(404,'Tarea no encontrada.');
+ if(!task||(user.rol!=='admin'&&task.trabajador_id!==user.id&&!await db.prepare('SELECT 1 ok FROM Tareas_Trabajadores WHERE ID_Tarea=? AND ID_Trabajador=?').bind(id,user.id).first()))throw new HttpError(404,'Tarea no encontrada.');
  return task;
 }
 export const status=async({env})=>json({configured:configured(env),limits:{files:LIMITS.count,per_file:LIMITS.file,total:LIMITS.total,per_task:LIMITS.task,per_author:LIMITS.user},preview:['image/png','image/jpeg','image/webp','text/plain','text/csv']});

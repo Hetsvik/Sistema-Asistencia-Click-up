@@ -9,7 +9,8 @@ const ESTADOS = ['Asignada', 'En Progreso', 'En revisión', 'Completada'];
 const LATE_TAG = '[ENTREGADO FUERA DE PLAZO]';
 
 const SELECT = `
-  SELECT t.ID_Tarea AS id, t.ID_Trabajador AS trabajador_id, e.Nombre_Completo AS trabajador,
+  SELECT t.ID_Tarea AS id, t.ID_Trabajador AS trabajador_id,
+         COALESCE((SELECT group_concat(EG.Nombre_Completo, ', ') FROM Tareas_Trabajadores TG JOIN Trabajadores WG ON WG.ID_Trabajador=TG.ID_Trabajador JOIN Empleados EG ON EG.ID_Empleado=WG.ID_Empleado WHERE TG.ID_Tarea=t.ID_Tarea), e.Nombre_Completo) AS trabajador,
          t.Nombre_Tarea AS nombre_tarea,
          t.Descripcion_Tarea AS descripcion, t.Fecha AS fecha, t.Fecha_Inicio AS fecha_inicio,
          t.Fecha_Entrega AS fecha_entrega, t.Estado_Tarea AS estado, t.Observaciones AS observaciones, D.Prioridad AS prioridad_manual
@@ -24,7 +25,8 @@ const withPriority = (task, ahora) => ({ ...task, prioridad: task.prioridad_manu
 async function loadTask(db, id, user) {
   const task = await db.prepare(`${SELECT} WHERE t.ID_Tarea = ? AND ${activeTask}`).bind(id).first();
   // Un trabajador no puede saber si existen tareas ajenas: responde 404 en ambos casos.
-  if (!task || (user.rol === 'trabajador' && task.trabajador_id !== user.id)) throw new HttpError(404, 'Tarea no encontrada.');
+  const allowed = task && (user.rol === 'admin' || task.trabajador_id === user.id || await db.prepare('SELECT 1 ok FROM Tareas_Trabajadores WHERE ID_Tarea=? AND ID_Trabajador=?').bind(id,user.id).first());
+  if (!allowed) throw new HttpError(404, 'Tarea no encontrada.');
   return task;
 }
 
@@ -35,10 +37,10 @@ export async function list({ env, user, url, tz }) {
   const add = (sql, ...values) => { where.push(sql); binds.push(...values); };
 
   if (user.rol === 'trabajador') {
-    add('t.ID_Trabajador = ?', user.id);
+    add('(t.ID_Trabajador = ? OR EXISTS(SELECT 1 FROM Tareas_Trabajadores TG WHERE TG.ID_Tarea=t.ID_Tarea AND TG.ID_Trabajador=?))', user.id,user.id);
   } else {
     const trabajador = intParam(p.get('trabajador'), { min: 1 });
-    if (trabajador) add('t.ID_Trabajador = ?', trabajador);
+    if (trabajador) add('(t.ID_Trabajador = ? OR EXISTS(SELECT 1 FROM Tareas_Trabajadores TG WHERE TG.ID_Tarea=t.ID_Tarea AND TG.ID_Trabajador=?))', trabajador,trabajador);
   }
   const estado = p.get('estado');
   if (estado) {
@@ -111,15 +113,22 @@ export async function create({ request, env, user, tz }) {
   if (!inicio) throw new HttpError(400, 'La fecha de inicio no es válida.');
   if (toMs(entrega) < toMs(inicio)) throw new HttpError(400, 'La entrega no puede ser anterior al inicio.');
 
-  const statements=[];
-  for(const trabajadorId of workerIds){
-    statements.push(env.DB.prepare(`INSERT INTO Tareas (ID_Trabajador,ID_Administrador_Asignador,Fecha,Fecha_Inicio,Fecha_Entrega,Nombre_Tarea,Descripcion_Tarea)
-      VALUES ((SELECT T.ID_Trabajador FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado=T.ID_Empleado LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado WHERE T.ID_Trabajador=? AND E.Estado='Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'),?,?,?,?,?,?)`).bind(trabajadorId,user.id,ahora.fecha,inicio,entrega,nombre,descripcion));
-    statements.push(env.DB.prepare('UPDATE Tareas_Detalle SET Prioridad=? WHERE ID_Tarea=last_insert_rowid()').bind(prioridad));
-  }
-  let results;try{results=await env.DB.batch(statements);}catch(err){if(String(err).includes('NOT NULL constraint failed: Tareas.ID_Trabajador'))throw new HttpError(409,'Un trabajador dejó de estar activo. Actualiza la selección.');throw err;}
-  const task=await loadTask(env.DB,results[0].meta.last_row_id,user);
-  return json({message:workerIds.length===1?'Tarea creada.':`${workerIds.length} tareas creadas.`,task:withPriority(task,ahora.fechaHora),created_count:workerIds.length},201);
+  // Una sola tarea compartida: el primer destinatario mantiene la referencia
+  // histórica obligatoria y todos quedan registrados como participantes.
+  let created;try{created=await env.DB.prepare(`INSERT INTO Tareas (ID_Trabajador,ID_Administrador_Asignador,Fecha,Fecha_Inicio,Fecha_Entrega,Nombre_Tarea,Descripcion_Tarea)
+    VALUES ((SELECT T.ID_Trabajador FROM Trabajadores T JOIN Empleados E ON E.ID_Empleado=T.ID_Empleado LEFT JOIN Cuentas_Usuario C ON C.ID_Empleado=E.ID_Empleado WHERE T.ID_Trabajador=? AND E.Estado='Activo' AND COALESCE(C.Rol,'trabajador')='trabajador'),?,?,?,?,?,?)`).bind(workerIds[0],user.id,ahora.fecha,inicio,entrega,nombre,descripcion).run();
+  }catch(err){if(String(err).includes('NOT NULL constraint failed: Tareas.ID_Trabajador'))throw new HttpError(409,'Un trabajador dejó de estar activo. Actualiza la selección.');throw err;}
+  const taskId=created.meta.last_row_id;
+  await env.DB.batch([
+    env.DB.prepare('UPDATE Tareas_Detalle SET Prioridad=? WHERE ID_Tarea=?').bind(prioridad,taskId),
+    ...workerIds.map(trabajadorId=>env.DB.prepare('INSERT OR IGNORE INTO Tareas_Trabajadores(ID_Tarea,ID_Trabajador) VALUES(?,?)').bind(taskId,trabajadorId)),
+  ]);
+  // El trigger histórico avisa al destinatario principal. Se notifica a los
+  // demás participantes sin duplicar ese aviso.
+  if(workerIds.length>1)await env.DB.prepare(`INSERT INTO Notificaciones_Tarea(ID_Empleado,ID_Tarea,Tipo,Nombre_Tarea,Descripcion,Fecha_Entrega,Estado)
+    SELECT W.ID_Empleado,?,'Asignada',?,?,?,'Asignada' FROM Trabajadores W WHERE W.ID_Trabajador IN (${workerIds.slice(1).map(()=>'?').join(',')})`).bind(taskId,nombre,descripcion,entrega,...workerIds.slice(1)).run();
+  const task=await loadTask(env.DB,taskId,user);
+  return json({message:workerIds.length===1?'Tarea creada.':'Tarea grupal creada.',task:withPriority(task,ahora.fechaHora),created_count:1,participant_count:workerIds.length},201);
 }
 
 export async function updateStatus({ request, env, user, params, tz }) {
@@ -150,7 +159,7 @@ export async function updateStatus({ request, env, user, params, tz }) {
   try {
     await env.DB.prepare(`INSERT INTO Notificaciones_Tarea(ID_Empleado,ID_Tarea,Tipo,Nombre_Tarea,Descripcion,Fecha_Entrega,Estado,Observaciones)
       SELECT W.ID_Empleado,?,CASE WHEN ?='En revisión' AND ?='En Progreso' THEN 'Devuelta' ELSE ? END,?,?,?,?,?
-      FROM Trabajadores W WHERE W.ID_Trabajador=?`).bind(id,task.estado,b.estado,b.estado,updated.nombre,updated.descripcion,updated.fecha_entrega,b.estado,obs,updated.trabajador_id).run();
+      FROM Trabajadores W WHERE W.ID_Trabajador IN (SELECT ID_Trabajador FROM Tareas_Trabajadores WHERE ID_Tarea=?)`).bind(id,task.estado,b.estado,b.estado,updated.nombre_tarea,updated.descripcion,updated.fecha_entrega,b.estado,obs,id).run();
   } catch (err) {
     console.error('[task status notification]',id,err?.message||err);
   }

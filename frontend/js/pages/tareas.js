@@ -247,12 +247,12 @@ async function openCreate() {
     <label class="full">Área de trabajo<select class="input plain" id="pick-area"><option value="">Selecciona un área…</option></select></label>
     <label>Buscar trabajador<input type="search" class="input plain" id="pick-worker" placeholder="Nombre o código" disabled></label>
     <label>Trabajador<select class="input plain" id="task-worker" disabled><option value="">Selecciona un área primero…</option></select></label>
-    <div class="full"><button type="button" class="btn outline sm" id="choose-worker-directory">Seleccionar trabajador</button><button type="button" class="btn outline sm" id="add-worker" disabled>+ Añadir trabajador</button><p class="muted" id="worker-hint" role="status">Busca trabajadores por área o selecciónalos desde la ventana.</p><div id="chosen-workers" class="chosen-workers"></div></div>
+    <div class="full"><button type="button" class="btn outline sm" id="choose-worker-directory">Seleccionar destinatarios</button><button type="button" class="btn outline sm" id="add-worker" disabled>+ Añadir trabajador</button><p class="muted" id="worker-hint" role="status">Busca destinatarios por área o selecciónalos desde la ventana. Compartirán el mismo chat y adjuntos.</p><div id="chosen-workers" class="chosen-workers"></div></div>
     <label class="full">Nombre de la tarea<input class="input plain" name="nombre_tarea" maxlength="120" required></label>
     <label class="full">Descripción<textarea class="input plain" name="descripcion" rows="3" maxlength="500" required></textarea></label>
     <label class="full">Prioridad<select class="input plain" name="prioridad" required><option>Alta</option><option selected>Media</option><option>Baja</option></select></label>
     <div id="task-datetime" class="full"></div><p class="form-message is-error full" id="f-error" hidden role="alert"></p>
-    <p class="muted full">Se creará una tarea independiente por trabajador, con su propio seguimiento.</p>
+    <p class="muted full">Se creará una sola tarea compartida: todos los destinatarios verán el mismo chat y los mismos adjuntos.</p>
     <div class="modal-actions full"><button type="button" class="btn outline" data-close>Cancelar</button><button type="submit" class="btn">Crear tareas</button></div></form>`});
   modal.el.classList.add('task-create-wide');
   const form=$('#new-task',modal.el),picker=initDateTimePicker($('#task-datetime',form),{label:'Fecha y hora de entrega'});
